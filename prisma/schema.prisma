@@ -1,7 +1,455 @@
 generator client {
-  provider = "prisma-client-js"
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
 }
 
 datasource db {
-  provider  = "postgresql"
+  provider = "postgresql"
+}
+
+enum DocumentProcessingStatus {
+  PENDING
+  PROCESSING
+  COMPLETED
+  FAILED
+}
+
+enum IngestionStatus {
+  PENDING
+  RUNNING
+  COMPLETED
+  FAILED
+  PURGED
+}
+
+enum ValidationStatus {
+  DRAFT
+  IN_REVIEW
+  VALIDATED
+  REJECTED
+}
+
+enum EngineMatchType {
+  EXACT
+  PREFIX
+  PATTERN
+  FAMILY
+  ALL
+}
+
+enum FaultCodeRole {
+  PRIMARY
+  RELATED
+  CONSEQUENTIAL
+}
+
+enum CauseCertainty {
+  POSSIBLE
+  PROBABLE
+  CONFIRMED
+}
+
+enum SolutionType {
+  REPAIR
+  REPLACE
+  CLEAN
+  ADJUST
+  CALIBRATE
+  SOFTWARE_UPDATE
+  REGENERATE
+  RESET
+  OTHER
+}
+
+enum ProcedureType {
+  DIAGNOSTIC
+  REPAIR
+  CALIBRATION
+  VERIFICATION
+}
+
+enum NoteType {
+  GENERAL
+  WARNING
+  LIMITATION
+  EXCEPTION
+  VARIANT
+  TECHNICAL
+}
+
+enum MediaType {
+  IMAGE
+  DIAGRAM
+  WIRING_DIAGRAM
+  CHART
+  WAVEFORM
+  SCREENSHOT
+  OTHER
+}
+
+model SourceDocument {
+  id                 String                   @id @default(cuid())
+  originalFilename   String
+  title              String?
+  bulletinReference  String?
+  publisher          String?
+  language           String?
+  storagePath        String                   @unique
+  sha256             String                   @unique
+  pageCount          Int?
+  claimedPageCount   Int?
+  isComplete         Boolean?
+  processingStatus   DocumentProcessingStatus @default(PENDING)
+  allowPdfDisplay    Boolean                  @default(false)
+  allowMediaReuse    Boolean                  @default(false)
+  rightsNote         String?
+  createdAt          DateTime                 @default(now())
+  updatedAt          DateTime                 @updatedAt
+  ingestionRuns      IngestionRun[]
+  caseSources        CaseSource[]
+  applicabilityFacts CaseApplicability[]
+  faultCodeFacts     CaseFaultCode[]
+  symptomFacts       CaseSymptom[]
+  componentFacts     CaseComponent[]
+  causeFacts         CaseCause[]
+  solutionFacts      CaseSolution[]
+  procedureStepFacts ProcedureStep[]
+  measurementFacts   MeasurementSpec[]
+  noteFacts          CaseNote[]
+  partFacts          CasePart[]
+  media              SourceMedia[]
+
+  @@index([processingStatus])
+}
+
+model IngestionRun {
+  id               String          @id @default(cuid())
+  sourceDocumentId String
+  status           IngestionStatus @default(PENDING)
+  extractor        String?
+  extractorVersion String?
+  rawOutput        Json?
+  errorMessage     String?
+  startedAt        DateTime        @default(now())
+  completedAt      DateTime?
+  purgedAt         DateTime?
+  sourceDocument   SourceDocument  @relation(fields: [sourceDocumentId], references: [id], onDelete: Cascade)
+
+  @@index([sourceDocumentId])
+  @@index([status])
+}
+
+model TechnicalCase {
+  id                 String              @id @default(cuid())
+  title              String
+  summary            String?
+  problemDescription String?
+  primarySystem      String?
+  validationStatus   ValidationStatus    @default(DRAFT)
+  reviewNotes        String?
+  validatedAt        DateTime?
+  createdAt          DateTime            @default(now())
+  updatedAt          DateTime            @updatedAt
+  sources            CaseSource[]
+  applicability      CaseApplicability[]
+  faultCodes         CaseFaultCode[]
+  symptoms           CaseSymptom[]
+  components         CaseComponent[]
+  causes             CaseCause[]
+  solutions          CaseSolution[]
+  procedures         Procedure[]
+  measurementSpecs   MeasurementSpec[]
+  notes              CaseNote[]
+  parts              CasePart[]
+  media              SourceMedia[]
+
+  @@index([validationStatus])
+}
+
+model CaseSource {
+  id               String         @id @default(cuid())
+  technicalCaseId  String
+  sourceDocumentId String
+  isPrimary        Boolean        @default(false)
+  technicalCase    TechnicalCase  @relation(fields: [technicalCaseId], references: [id], onDelete: Cascade)
+  sourceDocument   SourceDocument @relation(fields: [sourceDocumentId], references: [id], onDelete: Restrict)
+
+  @@unique([technicalCaseId, sourceDocumentId])
+  @@index([sourceDocumentId])
+}
+
+model CaseApplicability {
+  id                   String            @id @default(cuid())
+  technicalCaseId      String
+  brand                String?
+  model                String?
+  generationOrPlatform String?
+  yearFrom             Int?
+  yearTo               Int?
+  engineLabel          String?
+  engineFamily         String?
+  engineCode           String?
+  engineCodePattern    String?
+  engineMatchType      EngineMatchType?
+  fuelType             String?
+  transmission         String?
+  variantNotes         String?
+  sourceDocumentId     String?
+  sourcePage           Int?
+  technicalCase        TechnicalCase     @relation(fields: [technicalCaseId], references: [id], onDelete: Cascade)
+  sourceDocument       SourceDocument?   @relation(fields: [sourceDocumentId], references: [id], onDelete: SetNull)
+  procedureSteps       ProcedureStep[]
+  measurementSpecs     MeasurementSpec[]
+  notes                CaseNote[]
+  parts                CasePart[]
+
+  @@index([technicalCaseId])
+  @@index([brand])
+  @@index([model])
+  @@index([engineCode])
+  @@index([engineFamily])
+  @@index([sourceDocumentId, sourcePage])
+}
+
+model CaseFaultCode {
+  id               String          @id @default(cuid())
+  technicalCaseId  String
+  rawCode          String
+  normalizedCode   String?
+  manufacturerCode String?
+  description      String?
+  role             FaultCodeRole   @default(PRIMARY)
+  controlModule    String?
+  sourceDocumentId String?
+  sourcePage       Int?
+  technicalCase    TechnicalCase   @relation(fields: [technicalCaseId], references: [id], onDelete: Cascade)
+  sourceDocument   SourceDocument? @relation(fields: [sourceDocumentId], references: [id], onDelete: SetNull)
+
+  @@index([technicalCaseId])
+  @@index([normalizedCode])
+  @@index([sourceDocumentId, sourcePage])
+}
+
+model CaseSymptom {
+  id                 String          @id @default(cuid())
+  technicalCaseId    String
+  label              String
+  normalizedLabel    String?
+  details            String?
+  operatingCondition String?
+  sourceDocumentId   String?
+  sourcePage         Int?
+  technicalCase      TechnicalCase   @relation(fields: [technicalCaseId], references: [id], onDelete: Cascade)
+  sourceDocument     SourceDocument? @relation(fields: [sourceDocumentId], references: [id], onDelete: SetNull)
+
+  @@index([technicalCaseId])
+  @@index([normalizedLabel])
+  @@index([sourceDocumentId, sourcePage])
+}
+
+model CaseComponent {
+  id                     String            @id @default(cuid())
+  technicalCaseId        String
+  name                   String
+  normalizedName         String?
+  manufacturerIdentifier String?
+  system                 String?
+  role                   String?
+  sourceDocumentId       String?
+  sourcePage             Int?
+  technicalCase          TechnicalCase     @relation(fields: [technicalCaseId], references: [id], onDelete: Cascade)
+  sourceDocument         SourceDocument?   @relation(fields: [sourceDocumentId], references: [id], onDelete: SetNull)
+  causes                 CaseCause[]
+  solutions              CaseSolution[]
+  procedureSteps         ProcedureStep[]
+  measurementSpecs       MeasurementSpec[]
+  parts                  CasePart[]
+  media                  SourceMedia[]
+
+  @@index([technicalCaseId])
+  @@index([normalizedName])
+  @@index([sourceDocumentId, sourcePage])
+}
+
+model CaseCause {
+  id               String          @id @default(cuid())
+  technicalCaseId  String
+  componentId      String?
+  description      String
+  category         String?
+  certainty        CauseCertainty  @default(POSSIBLE)
+  priority         Int?
+  conditionText    String?
+  sourceDocumentId String?
+  sourcePage       Int?
+  technicalCase    TechnicalCase   @relation(fields: [technicalCaseId], references: [id], onDelete: Cascade)
+  component        CaseComponent?  @relation(fields: [componentId], references: [id], onDelete: SetNull)
+  sourceDocument   SourceDocument? @relation(fields: [sourceDocumentId], references: [id], onDelete: SetNull)
+
+  @@index([technicalCaseId])
+  @@index([componentId])
+  @@index([sourceDocumentId, sourcePage])
+}
+
+model CaseSolution {
+  id               String          @id @default(cuid())
+  technicalCaseId  String
+  componentId      String?
+  type             SolutionType
+  description      String
+  conditionText    String?
+  priority         Int?
+  sourceDocumentId String?
+  sourcePage       Int?
+  technicalCase    TechnicalCase   @relation(fields: [technicalCaseId], references: [id], onDelete: Cascade)
+  component        CaseComponent?  @relation(fields: [componentId], references: [id], onDelete: SetNull)
+  sourceDocument   SourceDocument? @relation(fields: [sourceDocumentId], references: [id], onDelete: SetNull)
+
+  @@index([technicalCaseId])
+  @@index([componentId])
+  @@index([sourceDocumentId, sourcePage])
+}
+
+model Procedure {
+  id              String          @id @default(cuid())
+  technicalCaseId String
+  type            ProcedureType
+  title           String
+  description     String?
+  position        Int
+  technicalCase   TechnicalCase   @relation(fields: [technicalCaseId], references: [id], onDelete: Cascade)
+  steps           ProcedureStep[]
+
+  @@unique([technicalCaseId, position])
+}
+
+model ProcedureStep {
+  id               String             @id @default(cuid())
+  procedureId      String
+  position         Int
+  instruction      String
+  precondition     String?
+  expectedResult   String?
+  ifPass           String?
+  ifFail           String?
+  toolsText        String?
+  componentId      String?
+  applicabilityId  String?
+  sourceDocumentId String?
+  sourcePage       Int?
+  procedure        Procedure          @relation(fields: [procedureId], references: [id], onDelete: Cascade)
+  component        CaseComponent?     @relation(fields: [componentId], references: [id], onDelete: SetNull)
+  applicability    CaseApplicability? @relation(fields: [applicabilityId], references: [id], onDelete: SetNull)
+  sourceDocument   SourceDocument?    @relation(fields: [sourceDocumentId], references: [id], onDelete: SetNull)
+  measurementSpecs MeasurementSpec[]
+  notes            CaseNote[]
+  media            SourceMedia[]
+
+  @@unique([procedureId, position])
+  @@index([componentId])
+  @@index([applicabilityId])
+  @@index([sourceDocumentId, sourcePage])
+}
+
+model MeasurementSpec {
+  id               String             @id @default(cuid())
+  technicalCaseId  String
+  procedureStepId  String?
+  componentId      String?
+  applicabilityId  String?
+  parameter        String
+  measurementType  String?
+  targetValue      Decimal?           @db.Decimal(18, 6)
+  minValue         Decimal?           @db.Decimal(18, 6)
+  maxValue         Decimal?           @db.Decimal(18, 6)
+  tolerancePlus    Decimal?           @db.Decimal(18, 6)
+  toleranceMinus   Decimal?           @db.Decimal(18, 6)
+  unit             String?
+  expectedText     String?
+  conditionText    String?
+  durationSeconds  Int?
+  repeatCount      Int?
+  isApproximate    Boolean            @default(false)
+  isExample        Boolean            @default(false)
+  sourceDocumentId String?
+  sourcePage       Int?
+  technicalCase    TechnicalCase      @relation(fields: [technicalCaseId], references: [id], onDelete: Cascade)
+  procedureStep    ProcedureStep?     @relation(fields: [procedureStepId], references: [id], onDelete: SetNull)
+  component        CaseComponent?     @relation(fields: [componentId], references: [id], onDelete: SetNull)
+  applicability    CaseApplicability? @relation(fields: [applicabilityId], references: [id], onDelete: SetNull)
+  sourceDocument   SourceDocument?    @relation(fields: [sourceDocumentId], references: [id], onDelete: SetNull)
+
+  @@index([technicalCaseId])
+  @@index([procedureStepId])
+  @@index([componentId])
+  @@index([applicabilityId])
+  @@index([sourceDocumentId, sourcePage])
+}
+
+model CaseNote {
+  id                String             @id @default(cuid())
+  technicalCaseId   String
+  procedureStepId   String?
+  applicabilityId   String?
+  type              NoteType
+  text              String
+  externalReference String?
+  sourceDocumentId  String?
+  sourcePage        Int?
+  technicalCase     TechnicalCase      @relation(fields: [technicalCaseId], references: [id], onDelete: Cascade)
+  procedureStep     ProcedureStep?     @relation(fields: [procedureStepId], references: [id], onDelete: SetNull)
+  applicability     CaseApplicability? @relation(fields: [applicabilityId], references: [id], onDelete: SetNull)
+  sourceDocument    SourceDocument?    @relation(fields: [sourceDocumentId], references: [id], onDelete: SetNull)
+
+  @@index([technicalCaseId])
+  @@index([procedureStepId])
+  @@index([applicabilityId])
+  @@index([sourceDocumentId, sourcePage])
+}
+
+model CasePart {
+  id                      String             @id @default(cuid())
+  technicalCaseId         String
+  componentId             String?
+  applicabilityId         String?
+  partNumber              String
+  description             String?
+  role                    String?
+  vinVerificationRequired Boolean            @default(false)
+  sourceDocumentId        String?
+  sourcePage              Int?
+  technicalCase           TechnicalCase      @relation(fields: [technicalCaseId], references: [id], onDelete: Cascade)
+  component               CaseComponent?     @relation(fields: [componentId], references: [id], onDelete: SetNull)
+  applicability           CaseApplicability? @relation(fields: [applicabilityId], references: [id], onDelete: SetNull)
+  sourceDocument          SourceDocument?    @relation(fields: [sourceDocumentId], references: [id], onDelete: SetNull)
+
+  @@index([technicalCaseId])
+  @@index([componentId])
+  @@index([applicabilityId])
+  @@index([partNumber])
+  @@index([sourceDocumentId, sourcePage])
+}
+
+model SourceMedia {
+  id                   String         @id @default(cuid())
+  sourceDocumentId     String
+  technicalCaseId      String?
+  sourcePage           Int
+  type                 MediaType
+  storagePath          String
+  caption              String?
+  technicalDescription String?
+  componentId          String?
+  procedureStepId      String?
+  createdAt            DateTime       @default(now())
+  sourceDocument       SourceDocument @relation(fields: [sourceDocumentId], references: [id], onDelete: Cascade)
+  technicalCase        TechnicalCase? @relation(fields: [technicalCaseId], references: [id], onDelete: SetNull)
+  component            CaseComponent? @relation(fields: [componentId], references: [id], onDelete: SetNull)
+  procedureStep        ProcedureStep? @relation(fields: [procedureStepId], references: [id], onDelete: SetNull)
+
+  @@unique([sourceDocumentId, storagePath])
+  @@index([technicalCaseId])
+  @@index([componentId])
+  @@index([procedureStepId])
+  @@index([sourceDocumentId, sourcePage])
 }
