@@ -4,3 +4,4 @@ coverage
 out
 build
 pnpm-lock.yaml
+src/generated/prisma
