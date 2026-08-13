@@ -1,6 +1,7 @@
 "use client";
 
 import { FormEvent, useRef, useState } from "react";
+import { useLocale, useTranslations } from "next-intl";
 import { useRouter } from "next/navigation";
 
 const MAX_PDF_SIZE_BYTES = 4 * 1024 * 1024;
@@ -11,13 +12,15 @@ type UploadResponse = {
   error?: string;
 };
 
-function formatFileSize(bytes: number) {
-  return new Intl.NumberFormat("en", {
+function formatFileSize(bytes: number, locale: string) {
+  return new Intl.NumberFormat(locale, {
     maximumFractionDigits: 2,
   }).format(bytes / 1024 / 1024);
 }
 
 export function PdfUploadForm() {
+  const t = useTranslations("Upload");
+  const locale = useLocale();
   const router = useRouter();
   const formRef = useRef<HTMLFormElement>(null);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
@@ -31,7 +34,7 @@ export function PdfUploadForm() {
     setSuccess(null);
 
     if (!selectedFile) {
-      setError("Select one PDF to upload.");
+      setError(t("selectOne"));
       return;
     }
 
@@ -39,12 +42,12 @@ export function PdfUploadForm() {
       selectedFile.type !== "application/pdf" ||
       !selectedFile.name.toLowerCase().endsWith(".pdf")
     ) {
-      setError("Select a PDF file.");
+      setError(t("selectPdf"));
       return;
     }
 
     if (selectedFile.size > MAX_PDF_SIZE_BYTES) {
-      setError("The PDF must be 4 MiB or smaller.");
+      setError(t("tooLarge"));
       return;
     }
 
@@ -60,23 +63,19 @@ export function PdfUploadForm() {
       const result = (await response.json()) as UploadResponse;
 
       if (!response.ok) {
-        throw new Error(result.error ?? "The PDF could not be uploaded.");
+        throw new Error(result.error ?? t("failed"));
       }
 
       setSuccess(
         result.status === "duplicate"
-          ? `This PDF already exists as ${result.originalFilename}. No duplicate was created.`
-          : `${result.originalFilename} was uploaded successfully.`,
+          ? t("duplicate", { filename: result.originalFilename ?? "" })
+          : t("success", { filename: result.originalFilename ?? "" }),
       );
       setSelectedFile(null);
       formRef.current?.reset();
       router.refresh();
     } catch (reason) {
-      setError(
-        reason instanceof Error
-          ? reason.message
-          : "The PDF could not be uploaded.",
-      );
+      setError(reason instanceof Error ? reason.message : t("failed"));
     } finally {
       setIsUploading(false);
     }
@@ -89,7 +88,7 @@ export function PdfUploadForm() {
           htmlFor="pdf"
           className="block text-sm font-medium text-slate-900"
         >
-          PDF document
+          {t("documentLabel")}
         </label>
         <input
           id="pdf"
@@ -104,15 +103,15 @@ export function PdfUploadForm() {
           }}
           className="mt-2 block w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-700 file:mr-4 file:rounded-md file:border-0 file:bg-slate-100 file:px-3 file:py-2 file:font-medium file:text-slate-900 hover:file:bg-slate-200 disabled:cursor-not-allowed disabled:opacity-60"
         />
-        <p className="mt-2 text-sm text-slate-500">
-          One PDF, up to 4 MiB. Files are stored privately.
-        </p>
+        <p className="mt-2 text-sm text-slate-500">{t("help")}</p>
       </div>
 
       {selectedFile ? (
         <div className="rounded-lg bg-slate-50 px-4 py-3 text-sm text-slate-700">
           <p className="font-medium text-slate-900">{selectedFile.name}</p>
-          <p className="mt-1">{formatFileSize(selectedFile.size)} MiB</p>
+          <p className="mt-1">
+            {formatFileSize(selectedFile.size, locale)} MiB
+          </p>
         </div>
       ) : null}
 
@@ -139,7 +138,7 @@ export function PdfUploadForm() {
         disabled={!selectedFile || isUploading}
         className="rounded-lg bg-blue-700 px-4 py-2.5 text-sm font-semibold text-white hover:bg-blue-800 disabled:cursor-not-allowed disabled:opacity-50"
       >
-        {isUploading ? "Uploading…" : "Upload PDF"}
+        {isUploading ? t("uploading") : t("upload")}
       </button>
     </form>
   );

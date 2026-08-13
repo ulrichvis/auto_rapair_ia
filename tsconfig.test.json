@@ -7,8 +7,13 @@
     "moduleResolution": "node",
     "noEmit": false,
     "outDir": ".test-dist",
-    "rootDir": "src/lib",
+    "rootDir": "src",
     "types": ["node"]
   },
-  "include": ["src/lib/extraction/**/*.ts"]
+  "include": [
+    "src/i18n/**/*.test.ts",
+    "src/i18n/locale.ts",
+    "src/i18n/messages/*.json",
+    "src/lib/extraction/**/*.ts"
+  ]
 }

@@ -1,26 +1,21 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import { getTranslations } from "next-intl/server";
 
 import { prisma } from "@/lib/server/prisma";
 
 import { ExtractButton } from "./extract-button";
 import { PdfUploadForm } from "./pdf-upload-form";
 
-export const metadata: Metadata = {
-  title: "Documents | AutoRepair Knowledge",
-};
+export async function generateMetadata(): Promise<Metadata> {
+  const t = await getTranslations("Metadata");
+  return { title: t("documentsTitle") };
+}
 
 export const dynamic = "force-dynamic";
 
-const statusLabels = {
-  PENDING: "Ready to extract",
-  PROCESSING: "Processing",
-  REVIEW_REQUIRED: "Extraction completed · Review required",
-  COMPLETED: "Completed",
-  FAILED: "Extraction failed",
-} as const;
-
 export default async function AdminDocumentsPage() {
+  const t = await getTranslations("Documents");
   const documents = await prisma.sourceDocument.findMany({
     orderBy: { createdAt: "desc" },
     select: {
@@ -28,11 +23,6 @@ export default async function AdminDocumentsPage() {
       originalFilename: true,
       processingStatus: true,
       createdAt: true,
-      ingestionRuns: {
-        orderBy: { startedAt: "desc" },
-        take: 1,
-        select: { errorMessage: true },
-      },
       _count: {
         select: {
           ingestionRuns: { where: { status: "SUCCESS" } },
@@ -46,27 +36,23 @@ export default async function AdminDocumentsPage() {
       <div className="w-full max-w-4xl space-y-8">
         <section className="rounded-2xl border border-slate-200 bg-white p-8 shadow-sm">
           <p className="text-sm font-semibold uppercase tracking-[0.18em] text-blue-700">
-            Admin
+            {t("eyebrow")}
           </p>
           <h1 className="mt-3 text-3xl font-semibold tracking-tight text-slate-950">
-            Upload a technical PDF
+            {t("uploadTitle")}
           </h1>
           <p className="mt-3 leading-7 text-slate-600">
-            Add one source document to the private technical knowledge library.
-            Uploaded PDFs remain private. Extraction creates a draft for human
-            review and does not write validated technical knowledge.
+            {t("uploadDescription")}
           </p>
 
           <PdfUploadForm />
         </section>
 
         <section className="rounded-2xl border border-slate-200 bg-white p-8 shadow-sm">
-          <h2 className="text-xl font-semibold text-slate-950">Documents</h2>
+          <h2 className="text-xl font-semibold text-slate-950">{t("title")}</h2>
 
           {documents.length === 0 ? (
-            <p className="mt-4 text-sm text-slate-600">
-              No documents uploaded yet.
-            </p>
+            <p className="mt-4 text-sm text-slate-600">{t("empty")}</p>
           ) : (
             <ul className="mt-5 divide-y divide-slate-200">
               {documents.map((document) => {
@@ -74,8 +60,6 @@ export default async function AdminDocumentsPage() {
                   document.processingStatus === "PENDING" ||
                   document.processingStatus === "FAILED" ||
                   document.processingStatus === "REVIEW_REQUIRED";
-                const latestError = document.ingestionRuns[0]?.errorMessage;
-
                 return (
                   <li
                     key={document.id}
@@ -86,11 +70,11 @@ export default async function AdminDocumentsPage() {
                         {document.originalFilename}
                       </p>
                       <p className="mt-1 text-sm text-slate-600">
-                        {statusLabels[document.processingStatus]}
+                        {t(`status.${document.processingStatus}`)}
                       </p>
-                      {document.processingStatus === "FAILED" && latestError ? (
+                      {document.processingStatus === "FAILED" ? (
                         <p className="mt-2 text-sm text-red-700">
-                          {latestError}
+                          {t("failedHelp")}
                         </p>
                       ) : null}
                     </div>
@@ -101,7 +85,7 @@ export default async function AdminDocumentsPage() {
                           href={`/admin/documents/${document.id}/review`}
                           className="rounded-lg bg-blue-700 px-3 py-2 text-sm font-semibold text-white hover:bg-blue-600"
                         >
-                          Review extraction
+                          {t("review")}
                         </Link>
                       ) : null}
                       {canExtract ? (

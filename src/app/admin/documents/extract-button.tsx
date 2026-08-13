@@ -1,6 +1,7 @@
 "use client";
 
 import { useRouter } from "next/navigation";
+import { useTranslations } from "next-intl";
 import { useState } from "react";
 
 type ExtractButtonProps = {
@@ -14,6 +15,7 @@ export function ExtractButton({
   isRetry,
   isReextract = false,
 }: ExtractButtonProps) {
+  const t = useTranslations("Extraction");
   const router = useRouter();
   const [isProcessing, setIsProcessing] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -31,10 +33,10 @@ export function ExtractButton({
       const result = (await response.json()) as { error?: string };
 
       if (!response.ok) {
-        throw new Error(result.error ?? "Extraction failed.");
+        throw new Error(result.error ?? t("failed"));
       }
     } catch (reason) {
-      setError(reason instanceof Error ? reason.message : "Extraction failed.");
+      setError(reason instanceof Error ? reason.message : t("failed"));
     } finally {
       setIsProcessing(false);
       router.refresh();
@@ -50,12 +52,12 @@ export function ExtractButton({
         className="rounded-lg bg-slate-900 px-3 py-2 text-sm font-semibold text-white hover:bg-slate-700 disabled:cursor-not-allowed disabled:opacity-50"
       >
         {isProcessing
-          ? "Processing…"
+          ? t("processing")
           : isRetry
-            ? "Retry extraction"
+            ? t("retry")
             : isReextract
-              ? "Re-extract"
-              : "Extract"}
+              ? t("reextract")
+              : t("extract")}
       </button>
       {error ? (
         <p role="alert" className="max-w-52 text-right text-xs text-red-700">

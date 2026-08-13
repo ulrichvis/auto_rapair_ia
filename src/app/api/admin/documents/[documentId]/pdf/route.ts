@@ -1,3 +1,5 @@
+import { getTranslations } from "next-intl/server";
+
 import { prisma } from "@/lib/server/prisma";
 import { downloadPrivatePdf } from "@/lib/server/supabase-storage";
 
@@ -12,10 +14,12 @@ export async function GET(
   _request: Request,
   context: RouteContext<"/api/admin/documents/[documentId]/pdf">,
 ) {
+  const apiT = await getTranslations("ApiErrors");
+  const extractionT = await getTranslations("Extraction");
   const { documentId } = await context.params;
 
   if (!documentId || documentId.length > 64) {
-    return Response.json({ error: "Invalid document ID." }, { status: 400 });
+    return Response.json({ error: apiT("invalidDocumentId") }, { status: 400 });
   }
 
   const document = await prisma.sourceDocument.findUnique({
@@ -25,7 +29,7 @@ export async function GET(
 
   if (!document) {
     return Response.json(
-      { error: "Source document not found." },
+      { error: extractionT("documentNotFound") },
       { status: 404 },
     );
   }
@@ -47,9 +51,6 @@ export async function GET(
       message: error instanceof Error ? error.message : "Unknown error",
     });
 
-    return Response.json(
-      { error: "The source PDF could not be opened." },
-      { status: 502 },
-    );
+    return Response.json({ error: apiT("pdfOpenFailed") }, { status: 502 });
   }
 }

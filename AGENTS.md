@@ -73,6 +73,19 @@ The database, not the original PDFs, should be the primary knowledge source for 
 - Keep environment variable documentation in `.env.example`.
 - Keep README setup instructions current when infrastructure changes.
 
+## UI internationalization rules
+
+- All new user-facing UI text must use the established internationalization system.
+- Do not hardcode user-facing strings directly in components unless technically unavoidable.
+- Every new user-facing string must include both English (`en`) and Italian (`it`) translations.
+- English is the fallback UI language.
+- Keep UI localization separate from PDF and technical source-language preservation.
+- Never translate extracted or validated technical source content merely when rendering the Admin UI.
+- Keep future features localization-ready.
+- Use clear, stable translation keys grouped by feature or concept.
+- Reuse an existing translation key for the same concept instead of creating duplicates.
+- Do not add UI languages beyond English and Italian unless explicitly requested.
+
 <!-- BEGIN:nextjs-agent-rules -->
 
 # This is NOT the Next.js you know

@@ -53,6 +53,16 @@ The project currently contains the application and PostgreSQL/Prisma foundations
 
 6. Open [http://localhost:3000](http://localhost:3000).
 
+## Interface languages
+
+The interface supports English and Italian without locale prefixes in URLs. On
+first access, the server checks the browser `Accept-Language` preference and
+falls back to English. A manual selection is stored in the
+`autorepair_ui_locale` cookie and overrides browser detection.
+
+UI messages live in `src/i18n/messages`. This setting affects interface text
+only; extracted automotive knowledge remains in the source PDF language.
+
 ## PDF storage
 
 Create a Supabase Storage bucket before using the upload page:

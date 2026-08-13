@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
+import { getTranslations } from "next-intl/server";
 
 import {
   getDocumentReview,
@@ -8,9 +9,10 @@ import {
 
 import { ReviewEditor } from "./review-editor";
 
-export const metadata: Metadata = {
-  title: "Review extraction | AutoRepair Knowledge",
-};
+export async function generateMetadata(): Promise<Metadata> {
+  const t = await getTranslations("Metadata");
+  return { title: t("reviewTitle") };
+}
 
 export const dynamic = "force-dynamic";
 

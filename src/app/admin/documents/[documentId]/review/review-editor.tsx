@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { useLocale, useTranslations } from "next-intl";
 import { useState } from "react";
 
 import type { AutomotiveExtractionDraft } from "@/lib/extraction/automotive-draft-schema";
@@ -21,89 +22,93 @@ type Part = DraftCase["parts"][number];
 type EditableValue = string | number | boolean | null;
 type FieldDefinition = {
   key: string;
-  label: string;
+  labelKey: string;
   kind?: "text" | "textarea" | "number" | "checkbox" | "select";
   options?: readonly string[];
   required?: boolean;
   internal?: boolean;
 };
-type Warning = { text: string; tone?: "danger" | "warning" };
+type Warning = { key: string; tone?: "danger" | "warning" };
 
 const sourcePageField: FieldDefinition = {
   key: "sourcePage",
-  label: "Source page",
+  labelKey: "sourcePage",
   kind: "number",
 };
 
 const applicabilityFields: FieldDefinition[] = [
-  { key: "brand", label: "Brand" },
-  { key: "model", label: "Model" },
-  { key: "generationOrPlatform", label: "Generation / platform" },
-  { key: "yearFrom", label: "Year from", kind: "number" },
-  { key: "yearTo", label: "Year to", kind: "number" },
-  { key: "engineLabel", label: "Engine label" },
-  { key: "engineFamily", label: "Engine family" },
-  { key: "engineCode", label: "Engine code" },
-  { key: "engineCodePattern", label: "Engine code pattern" },
+  { key: "brand", labelKey: "brand" },
+  { key: "model", labelKey: "model" },
+  { key: "generationOrPlatform", labelKey: "generationOrPlatform" },
+  { key: "yearFrom", labelKey: "yearFrom", kind: "number" },
+  { key: "yearTo", labelKey: "yearTo", kind: "number" },
+  { key: "engineLabel", labelKey: "engineLabel" },
+  { key: "engineFamily", labelKey: "engineFamily" },
+  { key: "engineCode", labelKey: "engineCode" },
+  { key: "engineCodePattern", labelKey: "engineCodePattern" },
   {
     key: "engineMatchType",
-    label: "Engine match",
+    labelKey: "engineMatchType",
     kind: "select",
     options: ["EXACT", "PREFIX", "PATTERN", "FAMILY", "ALL"],
   },
-  { key: "fuelType", label: "Fuel type" },
-  { key: "transmission", label: "Transmission" },
-  { key: "variantNotes", label: "Variant conditions", kind: "textarea" },
+  { key: "fuelType", labelKey: "fuelType" },
+  { key: "transmission", labelKey: "transmission" },
+  { key: "variantNotes", labelKey: "variantNotes", kind: "textarea" },
   sourcePageField,
 ];
 
 const faultCodeFields: FieldDefinition[] = [
-  { key: "rawCode", label: "Code as written", required: true },
-  { key: "normalizedCode", label: "Normalized code", internal: true },
-  { key: "manufacturerCode", label: "Manufacturer code" },
-  { key: "description", label: "Description", kind: "textarea" },
+  { key: "rawCode", labelKey: "rawCode", required: true },
+  { key: "normalizedCode", labelKey: "normalizedCode", internal: true },
+  { key: "manufacturerCode", labelKey: "manufacturerCode" },
+  { key: "description", labelKey: "description", kind: "textarea" },
   {
     key: "role",
-    label: "DTC role",
+    labelKey: "dtcRole",
     kind: "select",
     options: ["PRIMARY", "RELATED", "CONSEQUENTIAL"],
   },
-  { key: "controlModule", label: "Control module" },
+  { key: "controlModule", labelKey: "controlModule" },
   sourcePageField,
 ];
 
 const symptomFields: FieldDefinition[] = [
-  { key: "label", label: "Symptom", required: true },
-  { key: "normalizedLabel", label: "Normalized symptom", internal: true },
-  { key: "details", label: "Details", kind: "textarea" },
-  { key: "operatingCondition", label: "Operating condition", kind: "textarea" },
+  { key: "label", labelKey: "symptom", required: true },
+  { key: "normalizedLabel", labelKey: "normalizedSymptom", internal: true },
+  { key: "details", labelKey: "details", kind: "textarea" },
+  {
+    key: "operatingCondition",
+    labelKey: "operatingCondition",
+    kind: "textarea",
+  },
   sourcePageField,
 ];
 
 const componentFields: FieldDefinition[] = [
-  { key: "name", label: "Component", required: true },
-  { key: "normalizedName", label: "Normalized name", internal: true },
-  { key: "manufacturerIdentifier", label: "Identifier (N75, G581, etc.)" },
-  { key: "system", label: "System" },
-  { key: "role", label: "Role" },
+  { key: "name", labelKey: "component", required: true },
+  { key: "normalizedName", labelKey: "normalizedName", internal: true },
+  { key: "manufacturerIdentifier", labelKey: "manufacturerIdentifier" },
+  { key: "system", labelKey: "system" },
+  { key: "role", labelKey: "role" },
   sourcePageField,
 ];
 
 const causeFields: FieldDefinition[] = [
-  { key: "description", label: "Cause", kind: "textarea", required: true },
-  { key: "componentReference", label: "Component reference" },
-  { key: "category", label: "Category" },
+  { key: "description", labelKey: "cause", kind: "textarea", required: true },
+  { key: "componentReference", labelKey: "componentReference" },
+  { key: "category", labelKey: "category" },
   {
     key: "certainty",
-    label: "Cause certainty",
+    labelKey: "causeCertainty",
     kind: "select",
     options: ["POSSIBLE", "LIKELY", "CONFIRMED"],
     required: true,
   },
-  { key: "priority", label: "Priority", kind: "number" },
+  { key: "priority", labelKey: "priority", kind: "number" },
   {
     key: "conditionText",
-    label: "Applicability / condition",
+    labelKey: "conditionText",
     kind: "textarea",
   },
   sourcePageField,
@@ -112,7 +117,7 @@ const causeFields: FieldDefinition[] = [
 const solutionFields: FieldDefinition[] = [
   {
     key: "type",
-    label: "Action type",
+    labelKey: "actionType",
     kind: "select",
     options: [
       "REPAIR",
@@ -126,82 +131,92 @@ const solutionFields: FieldDefinition[] = [
       "OTHER",
     ],
   },
-  { key: "description", label: "Solution", kind: "textarea", required: true },
-  { key: "componentReference", label: "Component reference" },
+  {
+    key: "description",
+    labelKey: "solution",
+    kind: "textarea",
+    required: true,
+  },
+  { key: "componentReference", labelKey: "componentReference" },
   {
     key: "conditionText",
-    label: "Applicability / condition",
+    labelKey: "conditionText",
     kind: "textarea",
   },
-  { key: "priority", label: "Priority", kind: "number" },
+  { key: "priority", labelKey: "priority", kind: "number" },
   sourcePageField,
 ];
 
 const procedureFields: FieldDefinition[] = [
   {
     key: "type",
-    label: "Procedure type",
+    labelKey: "procedureType",
     kind: "select",
     options: ["DIAGNOSTIC", "REPAIR", "CALIBRATION", "VERIFICATION"],
     required: true,
   },
-  { key: "title", label: "Procedure title", required: true },
-  { key: "description", label: "Description", kind: "textarea" },
-  { key: "position", label: "Procedure order", kind: "number", required: true },
+  { key: "title", labelKey: "procedureTitle", required: true },
+  { key: "description", labelKey: "procedureDescription", kind: "textarea" },
+  {
+    key: "position",
+    labelKey: "procedureOrder",
+    kind: "number",
+    required: true,
+  },
 ];
 
 const stepFields: FieldDefinition[] = [
-  { key: "position", label: "Step order", kind: "number", required: true },
+  { key: "position", labelKey: "stepOrder", kind: "number", required: true },
   {
     key: "instruction",
-    label: "Instruction",
+    labelKey: "instruction",
     kind: "textarea",
     required: true,
   },
   {
     key: "precondition",
-    label: "Precondition / test condition",
+    labelKey: "precondition",
     kind: "textarea",
   },
-  { key: "expectedResult", label: "Expected result", kind: "textarea" },
-  { key: "ifPass", label: "If test passes", kind: "textarea" },
-  { key: "ifFail", label: "If test fails", kind: "textarea" },
-  { key: "toolsText", label: "Tools required", kind: "textarea" },
-  { key: "componentReference", label: "Component reference" },
-  { key: "applicabilityReference", label: "Applicability / variant reference" },
+  { key: "expectedResult", labelKey: "expectedResult", kind: "textarea" },
+  { key: "ifPass", labelKey: "ifPass", kind: "textarea" },
+  { key: "ifFail", labelKey: "ifFail", kind: "textarea" },
+  { key: "toolsText", labelKey: "toolsText", kind: "textarea" },
+  { key: "componentReference", labelKey: "componentReference" },
+  { key: "applicabilityReference", labelKey: "applicabilityReference" },
   sourcePageField,
 ];
 
 const measurementFields: FieldDefinition[] = [
-  { key: "parameter", label: "Measured parameter", required: true },
-  { key: "measurementType", label: "Measurement type" },
-  { key: "targetValue", label: "Target value", kind: "number" },
-  { key: "minValue", label: "Minimum", kind: "number" },
-  { key: "maxValue", label: "Maximum", kind: "number" },
-  { key: "tolerancePlus", label: "Tolerance +", kind: "number" },
-  { key: "toleranceMinus", label: "Tolerance −", kind: "number" },
-  { key: "unit", label: "Unit" },
+  { key: "parameter", labelKey: "parameter", required: true },
+  { key: "measurementType", labelKey: "measurementType" },
+  { key: "targetValue", labelKey: "targetValue", kind: "number" },
+  { key: "minValue", labelKey: "minValue", kind: "number" },
+  { key: "maxValue", labelKey: "maxValue", kind: "number" },
+  { key: "tolerancePlus", labelKey: "tolerancePlus", kind: "number" },
+  { key: "toleranceMinus", labelKey: "toleranceMinus", kind: "number" },
+  { key: "unit", labelKey: "unit" },
   {
     key: "expectedText",
-    label: "Expected value / result text",
+    labelKey: "expectedText",
     kind: "textarea",
   },
   {
     key: "conditionText",
-    label: "Test and variant conditions",
+    labelKey: "measurementCondition",
     kind: "textarea",
   },
-  { key: "durationSeconds", label: "Duration (seconds)", kind: "number" },
-  { key: "repeatCount", label: "Repeat count", kind: "number" },
-  { key: "isApproximate", label: "Approximate value", kind: "checkbox" },
-  { key: "isExample", label: "Example, not specification", kind: "checkbox" },
+  { key: "durationSeconds", labelKey: "durationSeconds", kind: "number" },
+  { key: "repeatCount", labelKey: "repeatCount", kind: "number" },
+  { key: "isApproximate", labelKey: "isApproximate", kind: "checkbox" },
+  { key: "isExample", labelKey: "isExample", kind: "checkbox" },
   sourcePageField,
 ];
 
 const noteFields: FieldDefinition[] = [
   {
     key: "type",
-    label: "Note type",
+    labelKey: "noteType",
     kind: "select",
     options: [
       "GENERAL",
@@ -213,16 +228,20 @@ const noteFields: FieldDefinition[] = [
     ],
     required: true,
   },
-  { key: "text", label: "Note / warning", kind: "textarea", required: true },
-  { key: "externalReference", label: "External reference" },
+  { key: "text", labelKey: "noteText", kind: "textarea", required: true },
+  { key: "externalReference", labelKey: "externalReference" },
   sourcePageField,
 ];
 
 const partFields: FieldDefinition[] = [
-  { key: "partNumber", label: "Part number", required: true },
-  { key: "description", label: "Description", kind: "textarea" },
-  { key: "role", label: "Role" },
-  { key: "vinVerificationRequired", label: "Verify by VIN", kind: "checkbox" },
+  { key: "partNumber", labelKey: "partNumber", required: true },
+  { key: "description", labelKey: "partDescription", kind: "textarea" },
+  { key: "role", labelKey: "partRole" },
+  {
+    key: "vinVerificationRequired",
+    labelKey: "vinVerificationRequired",
+    kind: "checkbox",
+  },
   sourcePageField,
 ];
 
@@ -328,7 +347,7 @@ const emptyStep: ProcedureStep = {
 
 function emptyCase(): DraftCase {
   return {
-    title: "New technical case",
+    title: "",
     summary: null,
     problemDescription: null,
     primarySystem: null,
@@ -365,6 +384,7 @@ function ItemFields<T extends object>({
   fields: FieldDefinition[];
   onChange: (item: T) => void;
 }) {
+  const t = useTranslations("Review");
   const record = item as Record<string, EditableValue>;
   return (
     <div className="grid gap-4 md:grid-cols-2">
@@ -379,11 +399,11 @@ function ItemFields<T extends object>({
             className={field.kind === "textarea" ? "md:col-span-2" : ""}
           >
             <span className="text-xs font-semibold uppercase tracking-wide text-slate-600">
-              {field.label}
+              {t(`fields.${field.labelKey}`)}
               {field.required ? " *" : ""}
               {field.internal ? (
                 <span className="ml-2 rounded bg-violet-100 px-1.5 py-0.5 text-[10px] text-violet-800 normal-case tracking-normal">
-                  Internal search key
+                  {t("internalKey")}
                 </span>
               ) : null}
             </span>
@@ -394,7 +414,7 @@ function ItemFields<T extends object>({
                   checked={Boolean(value)}
                   onChange={(event) => update(event.target.checked)}
                 />{" "}
-                Yes
+                {t("yes")}
               </span>
             ) : field.kind === "textarea" ? (
               <textarea
@@ -409,10 +429,10 @@ function ItemFields<T extends object>({
                 onChange={(event) => update(event.target.value)}
                 className={sharedClass}
               >
-                <option value="">Not specified</option>
+                <option value="">{t("notSpecified")}</option>
                 {field.options?.map((option) => (
                   <option key={option} value={option}>
-                    {option}
+                    {t(`enum.${option}`)}
                   </option>
                 ))}
               </select>
@@ -433,16 +453,17 @@ function ItemFields<T extends object>({
 }
 
 function WarningList({ warnings }: { warnings: Warning[] }) {
+  const t = useTranslations("Review");
   if (warnings.length === 0) return null;
   return (
     <div className="mb-4 space-y-2">
       {warnings.map((warning, index) => (
         <p
-          key={`${warning.text}-${index}`}
+          key={`${warning.key}-${index}`}
           role="alert"
           className={`rounded-lg border px-3 py-2 text-sm font-medium ${warning.tone === "danger" ? "border-red-300 bg-red-50 text-red-800" : "border-amber-300 bg-amber-50 text-amber-900"}`}
         >
-          {warning.text}
+          {t(`warnings.${warning.key}`)}
         </p>
       ))}
     </div>
@@ -450,34 +471,35 @@ function WarningList({ warnings }: { warnings: Warning[] }) {
 }
 
 function ArraySection<T extends object>({
-  title,
+  titleKey,
   items,
   fields,
   emptyItem,
   onChange,
   warningsForItem,
 }: {
-  title: string;
+  titleKey: string;
   items: T[];
   fields: FieldDefinition[];
   emptyItem: T;
   onChange: (items: T[]) => void;
   warningsForItem?: (item: T) => Warning[];
 }) {
+  const t = useTranslations("Review");
   return (
     <section className="rounded-xl border border-slate-200 bg-slate-50 p-5">
       <div className="flex items-center justify-between gap-4">
-        <h3 className="font-semibold text-slate-950">{title}</h3>
+        <h3 className="font-semibold text-slate-950">{t(titleKey)}</h3>
         <button
           type="button"
           onClick={() => onChange([...items, structuredClone(emptyItem)])}
           className="rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-sm font-medium hover:bg-slate-100"
         >
-          Add item
+          {t("addItem")}
         </button>
       </div>
       {items.length === 0 ? (
-        <p className="mt-4 text-sm text-slate-500">No items extracted.</p>
+        <p className="mt-4 text-sm text-slate-500">{t("noItems")}</p>
       ) : (
         <div className="mt-4 space-y-4">
           {items.map((item, index) => (
@@ -487,7 +509,7 @@ function ArraySection<T extends object>({
             >
               <div className="mb-4 flex items-center justify-between">
                 <p className="text-sm font-semibold text-slate-700">
-                  Item {index + 1}
+                  {t("item", { number: index + 1 })}
                 </p>
                 <button
                   type="button"
@@ -498,7 +520,7 @@ function ArraySection<T extends object>({
                   }
                   className="text-sm font-medium text-red-700 hover:text-red-900"
                 >
-                  Delete
+                  {t("delete")}
                 </button>
               </div>
               <WarningList warnings={warningsForItem?.(item) ?? []} />
@@ -534,6 +556,7 @@ function ProceduresSection({
   hasVariantScope: boolean;
   onChange: (procedures: Procedure[]) => void;
 }) {
+  const t = useTranslations("Review");
   function updateProcedure(index: number, procedure: Procedure) {
     onChange(
       procedures.map((current, currentIndex) =>
@@ -544,9 +567,7 @@ function ProceduresSection({
   return (
     <section className="rounded-xl border border-slate-200 bg-slate-50 p-5">
       <div className="flex items-center justify-between gap-4">
-        <h3 className="font-semibold text-slate-950">
-          Diagnostic / repair procedures and steps
-        </h3>
+        <h3 className="font-semibold text-slate-950">{t("procedures")}</h3>
         <button
           type="button"
           onClick={() =>
@@ -554,7 +575,7 @@ function ProceduresSection({
               ...procedures,
               {
                 type: "DIAGNOSTIC",
-                title: "New procedure",
+                title: "",
                 description: null,
                 position: procedures.length + 1,
                 steps: [],
@@ -563,11 +584,11 @@ function ProceduresSection({
           }
           className="rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-sm font-medium hover:bg-slate-100"
         >
-          Add procedure
+          {t("addProcedure")}
         </button>
       </div>
       {procedures.length === 0 ? (
-        <p className="mt-4 text-sm text-slate-500">No procedures extracted.</p>
+        <p className="mt-4 text-sm text-slate-500">{t("noProcedures")}</p>
       ) : (
         <div className="mt-4 space-y-5">
           {procedures.map((procedure, procedureIndex) => (
@@ -577,7 +598,7 @@ function ProceduresSection({
             >
               <div className="mb-4 flex items-center justify-between">
                 <p className="font-semibold text-slate-800">
-                  Procedure {procedureIndex + 1}
+                  {t("procedure", { number: procedureIndex + 1 })}
                 </p>
                 <button
                   type="button"
@@ -593,7 +614,7 @@ function ProceduresSection({
                   }
                   className="text-sm font-medium text-red-700"
                 >
-                  Delete procedure
+                  {t("deleteProcedure")}
                 </button>
               </div>
               <ItemFields
@@ -604,7 +625,7 @@ function ProceduresSection({
               <div className="mt-5 border-t border-slate-200 pt-5">
                 <div className="flex items-center justify-between">
                   <h4 className="text-sm font-semibold uppercase tracking-wide text-slate-600">
-                    Procedure steps
+                    {t("procedureSteps")}
                   </h4>
                   <button
                     type="button"
@@ -622,7 +643,7 @@ function ProceduresSection({
                     }
                     className="rounded-lg border border-slate-300 px-3 py-1.5 text-sm font-medium"
                   >
-                    Add step
+                    {t("addStep")}
                   </button>
                 </div>
                 <div className="mt-4 space-y-4">
@@ -631,7 +652,7 @@ function ProceduresSection({
                       hasVariantScope && !step.applicabilityReference
                         ? [
                             {
-                              text: "Variant-sensitive case: this step has no applicability reference.",
+                              key: "variantStepNoReference",
                             },
                           ]
                         : [];
@@ -642,7 +663,7 @@ function ProceduresSection({
                       >
                         <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
                           <p className="text-sm font-semibold">
-                            Step {stepIndex + 1}
+                            {t("step", { number: stepIndex + 1 })}
                           </p>
                           <div className="flex gap-2">
                             <button
@@ -661,7 +682,7 @@ function ProceduresSection({
                               }}
                               className="rounded border px-2 py-1 text-xs disabled:opacity-40"
                             >
-                              Move up
+                              {t("moveUp")}
                             </button>
                             <button
                               type="button"
@@ -681,7 +702,7 @@ function ProceduresSection({
                               }}
                               className="rounded border px-2 py-1 text-xs disabled:opacity-40"
                             >
-                              Move down
+                              {t("moveDown")}
                             </button>
                             <button
                               type="button"
@@ -697,7 +718,7 @@ function ProceduresSection({
                               }
                               className="px-2 py-1 text-xs font-medium text-red-700"
                             >
-                              Delete
+                              {t("delete")}
                             </button>
                           </div>
                         </div>
@@ -740,22 +761,20 @@ function applicabilityWarnings(item: Applicability): Warning[] {
   return item.variantNotes && !hasScope
     ? [
         {
-          text: "Variant-specific information has no vehicle or engine scope.",
+          key: "variantNoScope",
           tone: "danger",
         },
       ]
     : [];
 }
 function faultWarnings(item: FaultCode): Warning[] {
-  return item.role === "CONSEQUENTIAL"
-    ? [{ text: "Consequential DTC: do not treat this as the primary fault." }]
-    : [];
+  return item.role === "CONSEQUENTIAL" ? [{ key: "consequentialDtc" }] : [];
 }
 function causeWarnings(item: Cause): Warning[] {
   return item.certainty === "CONFIRMED"
     ? [
         {
-          text: "Confirmed cause: verify the source wording and applicability carefully.",
+          key: "confirmedCause",
           tone: "danger",
         },
       ]
@@ -774,10 +793,10 @@ function measurementWarnings(
     item.toleranceMinus,
   ].some((value) => value !== null);
   if (hasNumericValue && !item.unit?.trim())
-    warnings.push({ text: "Numeric measurement has no unit.", tone: "danger" });
+    warnings.push({ key: "numericNoUnit", tone: "danger" });
   if (hasNumericValue && !item.parameter.trim())
     warnings.push({
-      text: "Numeric measurement has no parameter.",
+      key: "numericNoParameter",
       tone: "danger",
     });
   if (
@@ -786,16 +805,16 @@ function measurementWarnings(
     item.minValue > item.maxValue
   )
     warnings.push({
-      text: "Minimum value is greater than maximum value.",
+      key: "minGreaterMax",
       tone: "danger",
     });
   if (item.isExample)
     warnings.push({
-      text: "Example measurement: do not import as a technical specification without confirmation.",
+      key: "exampleMeasurement",
     });
   if (hasVariantScope && !item.conditionText?.trim())
     warnings.push({
-      text: "Variant-sensitive case: measurement has no test or applicability condition.",
+      key: "variantMeasurementNoCondition",
     });
   return warnings;
 }
@@ -813,6 +832,8 @@ export function ReviewEditor({
   initialDraft: AutomotiveExtractionDraft;
   completedAt: string | null;
 }) {
+  const t = useTranslations("Review");
+  const locale = useLocale();
   const [draft, setDraft] = useState(initialDraft);
   const [isSaving, setIsSaving] = useState(false);
   const [message, setMessage] = useState<{
@@ -844,20 +865,19 @@ export function ReviewEditor({
         savedAt?: string;
         draft?: AutomotiveExtractionDraft;
       };
-      if (!response.ok)
-        throw new Error(result.error ?? "The review could not be saved.");
+      if (!response.ok) throw new Error(result.error ?? t("saveFailed"));
       if (result.draft) setDraft(result.draft);
-      const savedTime = result.savedAt
-        ? new Date(result.savedAt).toLocaleTimeString()
-        : "now";
-      setMessage({ tone: "success", text: `Draft saved at ${savedTime}.` });
+      const savedTime = new Intl.DateTimeFormat(locale, {
+        timeStyle: "short",
+      }).format(result.savedAt ? new Date(result.savedAt) : new Date());
+      setMessage({
+        tone: "success",
+        text: t("saved", { time: savedTime }),
+      });
     } catch (error) {
       setMessage({
         tone: "error",
-        text:
-          error instanceof Error
-            ? error.message
-            : "The review could not be saved.",
+        text: error instanceof Error ? error.message : t("saveFailed"),
       });
     } finally {
       setIsSaving(false);
@@ -868,18 +888,25 @@ export function ReviewEditor({
       <header className="mb-8 flex flex-col gap-5 rounded-2xl border border-slate-200 bg-white p-6 shadow-sm lg:flex-row lg:items-start lg:justify-between">
         <div>
           <p className="text-sm font-semibold uppercase tracking-[0.18em] text-blue-700">
-            Draft review
+            {t("eyebrow")}
           </p>
           <h1 className="mt-2 break-words text-2xl font-semibold text-slate-950">
             {originalFilename}
           </h1>
           <p className="mt-3 inline-flex rounded-full bg-emerald-50 px-3 py-1 text-sm font-semibold text-emerald-800">
-            Source language: {draft.document.language || "Not detected"}
+            {t("sourceLanguage", {
+              language: draft.document.language || t("notDetected"),
+            })}
           </p>
           <p className="mt-2 text-sm text-slate-600">
-            Latest successful extraction
-            {completedAt ? ` · ${new Date(completedAt).toLocaleString()}` : ""}.
-            Changes remain draft data.
+            {completedAt
+              ? t("latestExtraction", {
+                  date: new Intl.DateTimeFormat(locale, {
+                    dateStyle: "medium",
+                    timeStyle: "short",
+                  }).format(new Date(completedAt)),
+                })
+              : t("latestExtractionNoDate")}
           </p>
         </div>
         <div className="flex flex-wrap gap-3">
@@ -887,7 +914,7 @@ export function ReviewEditor({
             href="/admin/documents"
             className="rounded-lg border border-slate-300 px-4 py-2 text-sm font-semibold hover:bg-slate-50"
           >
-            Back to documents
+            {t("back")}
           </Link>
           <a
             href={`/api/admin/documents/${encodeURIComponent(documentId)}/pdf`}
@@ -895,29 +922,31 @@ export function ReviewEditor({
             rel="noreferrer"
             className="rounded-lg border border-blue-300 bg-blue-50 px-4 py-2 text-sm font-semibold text-blue-800 hover:bg-blue-100"
           >
-            Open source PDF
+            {t("openPdf")}
           </a>
         </div>
       </header>
 
       <section className="mb-8 rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
-        <h2 className="text-xl font-semibold text-slate-950">Document</h2>
+        <h2 className="text-xl font-semibold text-slate-950">
+          {t("document")}
+        </h2>
         <div className="mt-5">
           <ItemFields
             item={draft.document}
             fields={[
-              { key: "detectedTitle", label: "Detected title" },
-              { key: "bulletinReference", label: "Bulletin reference" },
-              { key: "publisher", label: "Publisher" },
-              { key: "language", label: "Language" },
+              { key: "detectedTitle", labelKey: "detectedTitle" },
+              { key: "bulletinReference", labelKey: "bulletinReference" },
+              { key: "publisher", labelKey: "publisher" },
+              { key: "language", labelKey: "language" },
               {
                 key: "claimedPageCount",
-                label: "Claimed page count",
+                labelKey: "claimedPageCount",
                 kind: "number",
               },
               {
                 key: "completenessNotes",
-                label: "Completeness notes",
+                labelKey: "completenessNotes",
                 kind: "textarea",
               },
             ]}
@@ -940,7 +969,7 @@ export function ReviewEditor({
             hasVariantScope && technicalCase.applicability.length === 0
               ? [
                   {
-                    text: "Variant-specific information has no applicability record.",
+                    key: "caseVariantNoApplicability",
                     tone: "danger",
                   },
                 ]
@@ -957,10 +986,10 @@ export function ReviewEditor({
               <div className="mb-6 flex items-center justify-between gap-4">
                 <div>
                   <p className="text-sm font-semibold uppercase tracking-wide text-blue-700">
-                    Technical case {caseIndex + 1}
+                    {t("technicalCase", { number: caseIndex + 1 })}
                   </p>
                   <h2 className="mt-1 text-xl font-semibold text-slate-950">
-                    {technicalCase.title || "Untitled case"}
+                    {technicalCase.title || t("untitledCase")}
                   </h2>
                 </div>
                 <button
@@ -972,22 +1001,22 @@ export function ReviewEditor({
                   }
                   className="text-sm font-semibold text-red-700"
                 >
-                  Delete case
+                  {t("deleteCase")}
                 </button>
               </div>
               <WarningList warnings={caseWarnings} />
               <div className="space-y-5">
                 <section className="rounded-xl border border-slate-200 bg-slate-50 p-5">
-                  <h3 className="mb-4 font-semibold">General</h3>
+                  <h3 className="mb-4 font-semibold">{t("general")}</h3>
                   <ItemFields
                     item={technicalCase}
                     fields={[
-                      { key: "title", label: "Case title", required: true },
-                      { key: "primarySystem", label: "Primary system" },
-                      { key: "summary", label: "Summary", kind: "textarea" },
+                      { key: "title", labelKey: "title", required: true },
+                      { key: "primarySystem", labelKey: "primarySystem" },
+                      { key: "summary", labelKey: "summary", kind: "textarea" },
                       {
                         key: "problemDescription",
-                        label: "Problem description",
+                        labelKey: "problemDescription",
                         kind: "textarea",
                       },
                     ]}
@@ -995,7 +1024,7 @@ export function ReviewEditor({
                   />
                 </section>
                 <ArraySection
-                  title="Applicability"
+                  titleKey="applicability"
                   items={technicalCase.applicability}
                   fields={applicabilityFields}
                   emptyItem={emptyApplicability}
@@ -1005,7 +1034,7 @@ export function ReviewEditor({
                   }
                 />
                 <ArraySection
-                  title="Fault codes"
+                  titleKey="faultCodes"
                   items={technicalCase.faultCodes}
                   fields={faultCodeFields}
                   emptyItem={emptyFaultCode}
@@ -1015,7 +1044,7 @@ export function ReviewEditor({
                   }
                 />
                 <ArraySection
-                  title="Symptoms"
+                  titleKey="symptoms"
                   items={technicalCase.symptoms}
                   fields={symptomFields}
                   emptyItem={emptySymptom}
@@ -1024,7 +1053,7 @@ export function ReviewEditor({
                   }
                 />
                 <ArraySection
-                  title="Components"
+                  titleKey="components"
                   items={technicalCase.components}
                   fields={componentFields}
                   emptyItem={emptyComponent}
@@ -1033,7 +1062,7 @@ export function ReviewEditor({
                   }
                 />
                 <ArraySection
-                  title="Causes"
+                  titleKey="causes"
                   items={technicalCase.causes}
                   fields={causeFields}
                   emptyItem={emptyCause}
@@ -1050,7 +1079,7 @@ export function ReviewEditor({
                   }
                 />
                 <ArraySection
-                  title="Measurements"
+                  titleKey="measurements"
                   items={technicalCase.measurements}
                   fields={measurementFields}
                   emptyItem={emptyMeasurement}
@@ -1062,7 +1091,7 @@ export function ReviewEditor({
                   }
                 />
                 <ArraySection
-                  title="Solutions"
+                  titleKey="solutions"
                   items={technicalCase.solutions}
                   fields={solutionFields}
                   emptyItem={emptySolution}
@@ -1071,7 +1100,7 @@ export function ReviewEditor({
                   }
                 />
                 <ArraySection
-                  title="Notes / warnings"
+                  titleKey="notes"
                   items={technicalCase.notes}
                   fields={noteFields}
                   emptyItem={emptyNote}
@@ -1080,7 +1109,7 @@ export function ReviewEditor({
                   }
                 />
                 <ArraySection
-                  title="Parts"
+                  titleKey="parts"
                   items={technicalCase.parts}
                   fields={partFields}
                   emptyItem={emptyPart}
@@ -1103,7 +1132,7 @@ export function ReviewEditor({
         }
         className="mt-6 rounded-lg border border-slate-300 bg-white px-4 py-2 text-sm font-semibold hover:bg-slate-50"
       >
-        Add technical case
+        {t("addCase")}
       </button>
       <footer className="sticky bottom-0 mt-8 flex flex-col gap-3 rounded-2xl border border-slate-300 bg-white/95 p-4 shadow-lg backdrop-blur sm:flex-row sm:items-center sm:justify-between">
         <div>
@@ -1115,9 +1144,7 @@ export function ReviewEditor({
               {message.text}
             </p>
           ) : (
-            <p className="text-sm text-slate-600">
-              Save before leaving to keep review changes.
-            </p>
+            <p className="text-sm text-slate-600">{t("saveBeforeLeaving")}</p>
           )}
         </div>
         <div className="flex flex-wrap gap-3">
@@ -1127,15 +1154,15 @@ export function ReviewEditor({
             disabled={isSaving}
             className="rounded-lg bg-slate-900 px-4 py-2 text-sm font-semibold text-white disabled:opacity-50"
           >
-            {isSaving ? "Saving…" : "Save draft"}
+            {isSaving ? t("saving") : t("saveDraft")}
           </button>
           <button
             type="button"
             disabled
-            title="Domain import will be implemented in the next step."
+            title={t("validateImportTitle")}
             className="cursor-not-allowed rounded-lg bg-blue-700 px-4 py-2 text-sm font-semibold text-white opacity-45"
           >
-            Validate and import · Not implemented yet
+            {t("validateImport")}
           </button>
         </div>
       </footer>
