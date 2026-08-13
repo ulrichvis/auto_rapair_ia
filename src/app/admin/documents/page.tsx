@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import Link from "next/link";
 
 import { prisma } from "@/lib/server/prisma";
 
@@ -88,12 +89,22 @@ export default async function AdminDocumentsPage() {
                       ) : null}
                     </div>
 
-                    {canExtract ? (
-                      <ExtractButton
-                        documentId={document.id}
-                        isRetry={document.processingStatus === "FAILED"}
-                      />
-                    ) : null}
+                    <div className="flex flex-col items-end gap-2">
+                      {document.processingStatus === "REVIEW_REQUIRED" ? (
+                        <Link
+                          href={`/admin/documents/${document.id}/review`}
+                          className="rounded-lg bg-blue-700 px-3 py-2 text-sm font-semibold text-white hover:bg-blue-600"
+                        >
+                          Review extraction
+                        </Link>
+                      ) : null}
+                      {canExtract ? (
+                        <ExtractButton
+                          documentId={document.id}
+                          isRetry={document.processingStatus === "FAILED"}
+                        />
+                      ) : null}
+                    </div>
                   </li>
                 );
               })}
