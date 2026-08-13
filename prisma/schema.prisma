@@ -139,11 +139,15 @@ model IngestionRun {
   errorMessage     String?
   startedAt        DateTime        @default(now())
   completedAt      DateTime?
+  reviewedAt       DateTime?
+  importedAt       DateTime?
   purgedAt         DateTime?
   sourceDocument   SourceDocument  @relation(fields: [sourceDocumentId], references: [id], onDelete: Cascade)
+  importedCases    TechnicalCase[] @relation("ImportedKnowledge")
 
   @@index([sourceDocumentId])
   @@index([status])
+  @@index([importedAt])
 }
 
 model TechnicalCase {
@@ -155,8 +159,10 @@ model TechnicalCase {
   validationStatus   ValidationStatus    @default(DRAFT)
   reviewNotes        String?
   validatedAt        DateTime?
+  importedFromRunId  String?
   createdAt          DateTime            @default(now())
   updatedAt          DateTime            @updatedAt
+  importedFromRun    IngestionRun?       @relation("ImportedKnowledge", fields: [importedFromRunId], references: [id], onDelete: SetNull)
   sources            CaseSource[]
   applicability      CaseApplicability[]
   faultCodes         CaseFaultCode[]
@@ -171,6 +177,7 @@ model TechnicalCase {
   media              SourceMedia[]
 
   @@index([validationStatus])
+  @@index([importedFromRunId])
 }
 
 model CaseSource {
@@ -225,7 +232,7 @@ model CaseFaultCode {
   normalizedCode   String?
   manufacturerCode String?
   description      String?
-  role             FaultCodeRole   @default(PRIMARY)
+  role             FaultCodeRole?
   controlModule    String?
   sourceDocumentId String?
   sourcePage       Int?

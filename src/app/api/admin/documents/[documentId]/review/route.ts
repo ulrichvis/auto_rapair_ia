@@ -3,6 +3,7 @@ import { getTranslations } from "next-intl/server";
 
 import {
   ReviewDraftConflictError,
+  ReviewDraftImportedError,
   ReviewDraftNotFoundError,
   saveDocumentReview,
 } from "@/lib/server/review/review-draft";
@@ -49,6 +50,10 @@ export async function PUT(
   } catch (error) {
     if (error instanceof ReviewDraftConflictError) {
       return Response.json({ error: t("newerExtraction") }, { status: 409 });
+    }
+
+    if (error instanceof ReviewDraftImportedError) {
+      return Response.json({ error: t("alreadyImported") }, { status: 409 });
     }
 
     if (error instanceof ReviewDraftNotFoundError) {

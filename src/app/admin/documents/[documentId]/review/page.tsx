@@ -43,6 +43,8 @@ export default async function DocumentReviewPage(
       runId={review.runId}
       originalFilename={review.originalFilename}
       completedAt={review.completedAt}
+      initialImportedAt={review.importedAt}
+      initialImportedCases={review.importedCases}
       initialDraft={review.draft}
     />
   );

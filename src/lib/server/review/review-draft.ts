@@ -21,6 +21,13 @@ export class ReviewDraftConflictError extends Error {
   }
 }
 
+export class ReviewDraftImportedError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = "ReviewDraftImportedError";
+  }
+}
+
 function toJsonValue(draft: AutomotiveExtractionDraft) {
   return JSON.parse(JSON.stringify(draft)) as Prisma.InputJsonValue;
 }
@@ -39,6 +46,11 @@ export async function getDocumentReview(documentId: string) {
           id: true,
           rawOutput: true,
           completedAt: true,
+          importedAt: true,
+          importedCases: {
+            select: { id: true, title: true },
+            orderBy: { createdAt: "asc" },
+          },
         },
       },
     },
@@ -61,6 +73,8 @@ export async function getDocumentReview(documentId: string) {
     originalFilename: document.originalFilename,
     runId: run.id,
     completedAt: run.completedAt?.toISOString() ?? null,
+    importedAt: run.importedAt?.toISOString() ?? null,
+    importedCases: run.importedCases,
     draft: validateAutomotiveExtractionDraft(run.rawOutput),
   };
 }
@@ -79,7 +93,7 @@ export async function saveDocumentReview(
         status: "SUCCESS",
       },
       orderBy: { startedAt: "desc" },
-      select: { id: true },
+      select: { id: true, importedAt: true },
     });
 
     if (!latestRun) {
@@ -94,9 +108,15 @@ export async function saveDocumentReview(
       );
     }
 
+    if (latestRun.importedAt) {
+      throw new ReviewDraftImportedError(
+        "Imported reviewed drafts can no longer be changed.",
+      );
+    }
+
     await transaction.ingestionRun.update({
       where: { id: latestRun.id },
-      data: { rawOutput: toJsonValue(draft) },
+      data: { rawOutput: toJsonValue(draft), reviewedAt: new Date() },
     });
   });
 

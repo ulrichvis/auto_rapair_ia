@@ -37,6 +37,7 @@ const sourcePageField: FieldDefinition = {
 };
 
 const applicabilityFields: FieldDefinition[] = [
+  { key: "reference", labelKey: "draftReference", internal: true },
   { key: "brand", labelKey: "brand" },
   { key: "model", labelKey: "model" },
   { key: "generationOrPlatform", labelKey: "generationOrPlatform" },
@@ -86,6 +87,7 @@ const symptomFields: FieldDefinition[] = [
 ];
 
 const componentFields: FieldDefinition[] = [
+  { key: "reference", labelKey: "draftReference", internal: true },
   { key: "name", labelKey: "component", required: true },
   { key: "normalizedName", labelKey: "normalizedName", internal: true },
   { key: "manufacturerIdentifier", labelKey: "manufacturerIdentifier" },
@@ -166,6 +168,7 @@ const procedureFields: FieldDefinition[] = [
 ];
 
 const stepFields: FieldDefinition[] = [
+  { key: "reference", labelKey: "draftReference", internal: true },
   { key: "position", labelKey: "stepOrder", kind: "number", required: true },
   {
     key: "instruction",
@@ -188,6 +191,17 @@ const stepFields: FieldDefinition[] = [
 ];
 
 const measurementFields: FieldDefinition[] = [
+  {
+    key: "procedureStepReference",
+    labelKey: "procedureStepReference",
+    internal: true,
+  },
+  { key: "componentReference", labelKey: "componentReference", internal: true },
+  {
+    key: "applicabilityReference",
+    labelKey: "applicabilityReference",
+    internal: true,
+  },
   { key: "parameter", labelKey: "parameter", required: true },
   { key: "measurementType", labelKey: "measurementType" },
   { key: "targetValue", labelKey: "targetValue", kind: "number" },
@@ -215,6 +229,16 @@ const measurementFields: FieldDefinition[] = [
 
 const noteFields: FieldDefinition[] = [
   {
+    key: "procedureStepReference",
+    labelKey: "procedureStepReference",
+    internal: true,
+  },
+  {
+    key: "applicabilityReference",
+    labelKey: "applicabilityReference",
+    internal: true,
+  },
+  {
     key: "type",
     labelKey: "noteType",
     kind: "select",
@@ -234,6 +258,12 @@ const noteFields: FieldDefinition[] = [
 ];
 
 const partFields: FieldDefinition[] = [
+  { key: "componentReference", labelKey: "componentReference", internal: true },
+  {
+    key: "applicabilityReference",
+    labelKey: "applicabilityReference",
+    internal: true,
+  },
   { key: "partNumber", labelKey: "partNumber", required: true },
   { key: "description", labelKey: "partDescription", kind: "textarea" },
   { key: "role", labelKey: "partRole" },
@@ -246,6 +276,7 @@ const partFields: FieldDefinition[] = [
 ];
 
 const emptyApplicability: Applicability = {
+  reference: null,
   brand: null,
   model: null,
   generationOrPlatform: null,
@@ -278,6 +309,7 @@ const emptySymptom: Symptom = {
   sourcePage: null,
 };
 const emptyComponent: Component = {
+  reference: null,
   name: "",
   normalizedName: null,
   manufacturerIdentifier: null,
@@ -303,6 +335,9 @@ const emptySolution: Solution = {
   sourcePage: null,
 };
 const emptyMeasurement: Measurement = {
+  procedureStepReference: null,
+  componentReference: null,
+  applicabilityReference: null,
   parameter: "",
   measurementType: null,
   targetValue: null,
@@ -320,12 +355,16 @@ const emptyMeasurement: Measurement = {
   sourcePage: null,
 };
 const emptyNote: Note = {
+  procedureStepReference: null,
+  applicabilityReference: null,
   type: "GENERAL",
   text: "",
   externalReference: null,
   sourcePage: null,
 };
 const emptyPart: Part = {
+  componentReference: null,
+  applicabilityReference: null,
   partNumber: "",
   description: null,
   role: null,
@@ -333,6 +372,7 @@ const emptyPart: Part = {
   sourcePage: null,
 };
 const emptyStep: ProcedureStep = {
+  reference: null,
   position: 1,
   instruction: "",
   precondition: null,
@@ -825,32 +865,44 @@ export function ReviewEditor({
   originalFilename,
   initialDraft,
   completedAt,
+  initialImportedAt,
+  initialImportedCases,
 }: {
   documentId: string;
   runId: string;
   originalFilename: string;
   initialDraft: AutomotiveExtractionDraft;
   completedAt: string | null;
+  initialImportedAt: string | null;
+  initialImportedCases: Array<{ id: string; title: string }>;
 }) {
   const t = useTranslations("Review");
   const locale = useLocale();
   const [draft, setDraft] = useState(initialDraft);
   const [isSaving, setIsSaving] = useState(false);
+  const [isImporting, setIsImporting] = useState(false);
+  const [importedAt, setImportedAt] = useState(initialImportedAt);
+  const [importedCases, setImportedCases] = useState(initialImportedCases);
+  const [validationIssues, setValidationIssues] = useState<string[]>([]);
   const [message, setMessage] = useState<{
     tone: "success" | "error";
     text: string;
   } | null>(null);
   function mutate(update: (next: AutomotiveExtractionDraft) => void) {
+    if (importedAt) return;
     setDraft((current) => {
       const next = structuredClone(current);
       update(next);
       return next;
     });
     setMessage(null);
+    setValidationIssues([]);
   }
-  async function saveDraft() {
+  async function saveDraft(showSuccess = true) {
+    if (importedAt) return false;
     setIsSaving(true);
     setMessage(null);
+    setValidationIssues([]);
     try {
       const response = await fetch(
         `/api/admin/documents/${encodeURIComponent(documentId)}/review`,
@@ -870,17 +922,61 @@ export function ReviewEditor({
       const savedTime = new Intl.DateTimeFormat(locale, {
         timeStyle: "short",
       }).format(result.savedAt ? new Date(result.savedAt) : new Date());
-      setMessage({
-        tone: "success",
-        text: t("saved", { time: savedTime }),
-      });
+      if (showSuccess) {
+        setMessage({
+          tone: "success",
+          text: t("saved", { time: savedTime }),
+        });
+      }
+      return true;
     } catch (error) {
       setMessage({
         tone: "error",
         text: error instanceof Error ? error.message : t("saveFailed"),
       });
+      return false;
     } finally {
       setIsSaving(false);
+    }
+  }
+  async function validateAndImport() {
+    if (importedAt || !window.confirm(t("confirmImport"))) return;
+
+    setIsImporting(true);
+    setMessage(null);
+    setValidationIssues([]);
+    try {
+      if (!(await saveDraft(false))) return;
+
+      const response = await fetch(
+        `/api/admin/documents/${encodeURIComponent(documentId)}/import`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ runId }),
+        },
+      );
+      const result = (await response.json()) as {
+        error?: string;
+        importedAt?: string;
+        cases?: Array<{ id: string; title: string }>;
+        issues?: Array<{ message: string }>;
+      };
+      if (!response.ok) {
+        setValidationIssues(result.issues?.map((issue) => issue.message) ?? []);
+        throw new Error(result.error ?? t("importFailed"));
+      }
+
+      setImportedAt(result.importedAt ?? new Date().toISOString());
+      setImportedCases(result.cases ?? []);
+      setMessage({ tone: "success", text: t("importSuccess") });
+    } catch (error) {
+      setMessage({
+        tone: "error",
+        text: error instanceof Error ? error.message : t("importFailed"),
+      });
+    } finally {
+      setIsImporting(false);
     }
   }
   return (
@@ -927,213 +1023,261 @@ export function ReviewEditor({
         </div>
       </header>
 
-      <section className="mb-8 rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
-        <h2 className="text-xl font-semibold text-slate-950">
-          {t("document")}
-        </h2>
-        <div className="mt-5">
-          <ItemFields
-            item={draft.document}
-            fields={[
-              { key: "detectedTitle", labelKey: "detectedTitle" },
-              { key: "bulletinReference", labelKey: "bulletinReference" },
-              { key: "publisher", labelKey: "publisher" },
-              { key: "language", labelKey: "language" },
-              {
-                key: "claimedPageCount",
-                labelKey: "claimedPageCount",
-                kind: "number",
-              },
-              {
-                key: "completenessNotes",
-                labelKey: "completenessNotes",
-                kind: "textarea",
-              },
-            ]}
-            onChange={(document) =>
-              mutate((next) => {
-                next.document = document;
-              })
-            }
-          />
-        </div>
-      </section>
-
-      <div className="space-y-8">
-        {draft.cases.map((technicalCase, caseIndex) => {
-          const hasVariantScope =
-            technicalCase.applicability.some((item) =>
-              Boolean(item.variantNotes),
-            ) || technicalCase.notes.some((item) => item.type === "VARIANT");
-          const caseWarnings: Warning[] =
-            hasVariantScope && technicalCase.applicability.length === 0
-              ? [
-                  {
-                    key: "caseVariantNoApplicability",
-                    tone: "danger",
-                  },
-                ]
-              : [];
-          const replaceCase = (updated: DraftCase) =>
-            mutate((next) => {
-              next.cases[caseIndex] = updated;
-            });
-          return (
-            <article
-              key={caseIndex}
-              className="rounded-2xl border border-slate-300 bg-white p-6 shadow-sm"
-            >
-              <div className="mb-6 flex items-center justify-between gap-4">
-                <div>
-                  <p className="text-sm font-semibold uppercase tracking-wide text-blue-700">
-                    {t("technicalCase", { number: caseIndex + 1 })}
-                  </p>
-                  <h2 className="mt-1 text-xl font-semibold text-slate-950">
-                    {technicalCase.title || t("untitledCase")}
-                  </h2>
-                </div>
-                <button
-                  type="button"
-                  onClick={() =>
-                    mutate((next) => {
-                      next.cases.splice(caseIndex, 1);
-                    })
-                  }
-                  className="text-sm font-semibold text-red-700"
+      {importedAt ? (
+        <section className="mb-8 rounded-2xl border border-emerald-300 bg-emerald-50 p-5">
+          <h2 className="font-semibold text-emerald-950">
+            {t("validatedTitle")}
+          </h2>
+          <p className="mt-1 text-sm text-emerald-800">
+            {t("validatedDescription")}
+          </p>
+          <ul className="mt-3 space-y-1">
+            {importedCases.map((technicalCase) => (
+              <li key={technicalCase.id}>
+                <Link
+                  href={`/admin/cases/${encodeURIComponent(technicalCase.id)}`}
+                  className="text-sm font-semibold text-emerald-900 underline"
                 >
-                  {t("deleteCase")}
-                </button>
-              </div>
-              <WarningList warnings={caseWarnings} />
-              <div className="space-y-5">
-                <section className="rounded-xl border border-slate-200 bg-slate-50 p-5">
-                  <h3 className="mb-4 font-semibold">{t("general")}</h3>
-                  <ItemFields
-                    item={technicalCase}
-                    fields={[
-                      { key: "title", labelKey: "title", required: true },
-                      { key: "primarySystem", labelKey: "primarySystem" },
-                      { key: "summary", labelKey: "summary", kind: "textarea" },
-                      {
-                        key: "problemDescription",
-                        labelKey: "problemDescription",
-                        kind: "textarea",
-                      },
-                    ]}
-                    onChange={replaceCase}
-                  />
-                </section>
-                <ArraySection
-                  titleKey="applicability"
-                  items={technicalCase.applicability}
-                  fields={applicabilityFields}
-                  emptyItem={emptyApplicability}
-                  warningsForItem={applicabilityWarnings}
-                  onChange={(items) =>
-                    replaceCase({ ...technicalCase, applicability: items })
-                  }
-                />
-                <ArraySection
-                  titleKey="faultCodes"
-                  items={technicalCase.faultCodes}
-                  fields={faultCodeFields}
-                  emptyItem={emptyFaultCode}
-                  warningsForItem={faultWarnings}
-                  onChange={(items) =>
-                    replaceCase({ ...technicalCase, faultCodes: items })
-                  }
-                />
-                <ArraySection
-                  titleKey="symptoms"
-                  items={technicalCase.symptoms}
-                  fields={symptomFields}
-                  emptyItem={emptySymptom}
-                  onChange={(items) =>
-                    replaceCase({ ...technicalCase, symptoms: items })
-                  }
-                />
-                <ArraySection
-                  titleKey="components"
-                  items={technicalCase.components}
-                  fields={componentFields}
-                  emptyItem={emptyComponent}
-                  onChange={(items) =>
-                    replaceCase({ ...technicalCase, components: items })
-                  }
-                />
-                <ArraySection
-                  titleKey="causes"
-                  items={technicalCase.causes}
-                  fields={causeFields}
-                  emptyItem={emptyCause}
-                  warningsForItem={causeWarnings}
-                  onChange={(items) =>
-                    replaceCase({ ...technicalCase, causes: items })
-                  }
-                />
-                <ProceduresSection
-                  procedures={technicalCase.procedures}
-                  hasVariantScope={hasVariantScope}
-                  onChange={(items) =>
-                    replaceCase({ ...technicalCase, procedures: items })
-                  }
-                />
-                <ArraySection
-                  titleKey="measurements"
-                  items={technicalCase.measurements}
-                  fields={measurementFields}
-                  emptyItem={emptyMeasurement}
-                  warningsForItem={(item) =>
-                    measurementWarnings(item, hasVariantScope)
-                  }
-                  onChange={(items) =>
-                    replaceCase({ ...technicalCase, measurements: items })
-                  }
-                />
-                <ArraySection
-                  titleKey="solutions"
-                  items={technicalCase.solutions}
-                  fields={solutionFields}
-                  emptyItem={emptySolution}
-                  onChange={(items) =>
-                    replaceCase({ ...technicalCase, solutions: items })
-                  }
-                />
-                <ArraySection
-                  titleKey="notes"
-                  items={technicalCase.notes}
-                  fields={noteFields}
-                  emptyItem={emptyNote}
-                  onChange={(items) =>
-                    replaceCase({ ...technicalCase, notes: items })
-                  }
-                />
-                <ArraySection
-                  titleKey="parts"
-                  items={technicalCase.parts}
-                  fields={partFields}
-                  emptyItem={emptyPart}
-                  onChange={(items) =>
-                    replaceCase({ ...technicalCase, parts: items })
-                  }
-                />
-              </div>
-            </article>
-          );
-        })}
-      </div>
+                  {technicalCase.title}
+                </Link>
+              </li>
+            ))}
+          </ul>
+        </section>
+      ) : null}
 
-      <button
-        type="button"
-        onClick={() =>
-          mutate((next) => {
-            next.cases.push(emptyCase());
-          })
-        }
-        className="mt-6 rounded-lg border border-slate-300 bg-white px-4 py-2 text-sm font-semibold hover:bg-slate-50"
+      {validationIssues.length > 0 ? (
+        <section
+          role="alert"
+          className="mb-8 rounded-2xl border border-red-300 bg-red-50 p-5"
+        >
+          <h2 className="font-semibold text-red-950">
+            {t("validationErrorsTitle")}
+          </h2>
+          <ul className="mt-3 list-disc space-y-1 pl-5 text-sm text-red-800">
+            {validationIssues.map((issue, index) => (
+              <li key={`${index}-${issue}`}>{issue}</li>
+            ))}
+          </ul>
+        </section>
+      ) : null}
+
+      <fieldset
+        disabled={Boolean(importedAt)}
+        className="min-w-0 disabled:opacity-75"
       >
-        {t("addCase")}
-      </button>
+        <section className="mb-8 rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
+          <h2 className="text-xl font-semibold text-slate-950">
+            {t("document")}
+          </h2>
+          <div className="mt-5">
+            <ItemFields
+              item={draft.document}
+              fields={[
+                { key: "detectedTitle", labelKey: "detectedTitle" },
+                { key: "bulletinReference", labelKey: "bulletinReference" },
+                { key: "publisher", labelKey: "publisher" },
+                { key: "language", labelKey: "language" },
+                {
+                  key: "claimedPageCount",
+                  labelKey: "claimedPageCount",
+                  kind: "number",
+                },
+                {
+                  key: "completenessNotes",
+                  labelKey: "completenessNotes",
+                  kind: "textarea",
+                },
+              ]}
+              onChange={(document) =>
+                mutate((next) => {
+                  next.document = document;
+                })
+              }
+            />
+          </div>
+        </section>
+
+        <div className="space-y-8">
+          {draft.cases.map((technicalCase, caseIndex) => {
+            const hasVariantScope =
+              technicalCase.applicability.some((item) =>
+                Boolean(item.variantNotes),
+              ) || technicalCase.notes.some((item) => item.type === "VARIANT");
+            const caseWarnings: Warning[] =
+              hasVariantScope && technicalCase.applicability.length === 0
+                ? [
+                    {
+                      key: "caseVariantNoApplicability",
+                      tone: "danger",
+                    },
+                  ]
+                : [];
+            const replaceCase = (updated: DraftCase) =>
+              mutate((next) => {
+                next.cases[caseIndex] = updated;
+              });
+            return (
+              <article
+                key={caseIndex}
+                className="rounded-2xl border border-slate-300 bg-white p-6 shadow-sm"
+              >
+                <div className="mb-6 flex items-center justify-between gap-4">
+                  <div>
+                    <p className="text-sm font-semibold uppercase tracking-wide text-blue-700">
+                      {t("technicalCase", { number: caseIndex + 1 })}
+                    </p>
+                    <h2 className="mt-1 text-xl font-semibold text-slate-950">
+                      {technicalCase.title || t("untitledCase")}
+                    </h2>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() =>
+                      mutate((next) => {
+                        next.cases.splice(caseIndex, 1);
+                      })
+                    }
+                    className="text-sm font-semibold text-red-700"
+                  >
+                    {t("deleteCase")}
+                  </button>
+                </div>
+                <WarningList warnings={caseWarnings} />
+                <div className="space-y-5">
+                  <section className="rounded-xl border border-slate-200 bg-slate-50 p-5">
+                    <h3 className="mb-4 font-semibold">{t("general")}</h3>
+                    <ItemFields
+                      item={technicalCase}
+                      fields={[
+                        { key: "title", labelKey: "title", required: true },
+                        { key: "primarySystem", labelKey: "primarySystem" },
+                        {
+                          key: "summary",
+                          labelKey: "summary",
+                          kind: "textarea",
+                        },
+                        {
+                          key: "problemDescription",
+                          labelKey: "problemDescription",
+                          kind: "textarea",
+                        },
+                      ]}
+                      onChange={replaceCase}
+                    />
+                  </section>
+                  <ArraySection
+                    titleKey="applicability"
+                    items={technicalCase.applicability}
+                    fields={applicabilityFields}
+                    emptyItem={emptyApplicability}
+                    warningsForItem={applicabilityWarnings}
+                    onChange={(items) =>
+                      replaceCase({ ...technicalCase, applicability: items })
+                    }
+                  />
+                  <ArraySection
+                    titleKey="faultCodes"
+                    items={technicalCase.faultCodes}
+                    fields={faultCodeFields}
+                    emptyItem={emptyFaultCode}
+                    warningsForItem={faultWarnings}
+                    onChange={(items) =>
+                      replaceCase({ ...technicalCase, faultCodes: items })
+                    }
+                  />
+                  <ArraySection
+                    titleKey="symptoms"
+                    items={technicalCase.symptoms}
+                    fields={symptomFields}
+                    emptyItem={emptySymptom}
+                    onChange={(items) =>
+                      replaceCase({ ...technicalCase, symptoms: items })
+                    }
+                  />
+                  <ArraySection
+                    titleKey="components"
+                    items={technicalCase.components}
+                    fields={componentFields}
+                    emptyItem={emptyComponent}
+                    onChange={(items) =>
+                      replaceCase({ ...technicalCase, components: items })
+                    }
+                  />
+                  <ArraySection
+                    titleKey="causes"
+                    items={technicalCase.causes}
+                    fields={causeFields}
+                    emptyItem={emptyCause}
+                    warningsForItem={causeWarnings}
+                    onChange={(items) =>
+                      replaceCase({ ...technicalCase, causes: items })
+                    }
+                  />
+                  <ProceduresSection
+                    procedures={technicalCase.procedures}
+                    hasVariantScope={hasVariantScope}
+                    onChange={(items) =>
+                      replaceCase({ ...technicalCase, procedures: items })
+                    }
+                  />
+                  <ArraySection
+                    titleKey="measurements"
+                    items={technicalCase.measurements}
+                    fields={measurementFields}
+                    emptyItem={emptyMeasurement}
+                    warningsForItem={(item) =>
+                      measurementWarnings(item, hasVariantScope)
+                    }
+                    onChange={(items) =>
+                      replaceCase({ ...technicalCase, measurements: items })
+                    }
+                  />
+                  <ArraySection
+                    titleKey="solutions"
+                    items={technicalCase.solutions}
+                    fields={solutionFields}
+                    emptyItem={emptySolution}
+                    onChange={(items) =>
+                      replaceCase({ ...technicalCase, solutions: items })
+                    }
+                  />
+                  <ArraySection
+                    titleKey="notes"
+                    items={technicalCase.notes}
+                    fields={noteFields}
+                    emptyItem={emptyNote}
+                    onChange={(items) =>
+                      replaceCase({ ...technicalCase, notes: items })
+                    }
+                  />
+                  <ArraySection
+                    titleKey="parts"
+                    items={technicalCase.parts}
+                    fields={partFields}
+                    emptyItem={emptyPart}
+                    onChange={(items) =>
+                      replaceCase({ ...technicalCase, parts: items })
+                    }
+                  />
+                </div>
+              </article>
+            );
+          })}
+        </div>
+
+        <button
+          type="button"
+          onClick={() =>
+            mutate((next) => {
+              next.cases.push(emptyCase());
+            })
+          }
+          className="mt-6 rounded-lg border border-slate-300 bg-white px-4 py-2 text-sm font-semibold hover:bg-slate-50"
+        >
+          {t("addCase")}
+        </button>
+      </fieldset>
       <footer className="sticky bottom-0 mt-8 flex flex-col gap-3 rounded-2xl border border-slate-300 bg-white/95 p-4 shadow-lg backdrop-blur sm:flex-row sm:items-center sm:justify-between">
         <div>
           {message ? (
@@ -1150,19 +1294,23 @@ export function ReviewEditor({
         <div className="flex flex-wrap gap-3">
           <button
             type="button"
-            onClick={saveDraft}
-            disabled={isSaving}
+            onClick={() => void saveDraft()}
+            disabled={isSaving || isImporting || Boolean(importedAt)}
             className="rounded-lg bg-slate-900 px-4 py-2 text-sm font-semibold text-white disabled:opacity-50"
           >
             {isSaving ? t("saving") : t("saveDraft")}
           </button>
           <button
             type="button"
-            disabled
-            title={t("validateImportTitle")}
-            className="cursor-not-allowed rounded-lg bg-blue-700 px-4 py-2 text-sm font-semibold text-white opacity-45"
+            onClick={() => void validateAndImport()}
+            disabled={isSaving || isImporting || Boolean(importedAt)}
+            className="rounded-lg bg-blue-700 px-4 py-2 text-sm font-semibold text-white disabled:cursor-not-allowed disabled:opacity-45"
           >
-            {t("validateImport")}
+            {isImporting
+              ? t("importing")
+              : importedAt
+                ? t("alreadyValidated")
+                : t("validateImport")}
           </button>
         </div>
       </footer>

@@ -24,7 +24,7 @@ Extraction rules:
 14. If variants require opposite procedures or values, keep them explicitly separated with conditions.
 15. Extract all distinct technical cases in the document.
 16. Do not extract images or create media records.
-17. Component and applicability references must be stable descriptive strings that clearly match entries in the same case and remain in the source language where they are human-readable.
+17. Give an applicability, component, or procedure step a unique reference string whenever another extracted object refers to it. Copy that exact reference into componentReference, applicabilityReference, or procedureStepReference fields in the same case. References are temporary relationship keys, not replacements for source-language technical wording.
 18. Inspect page images, diagrams, tables, photos, and diagnostic screenshots as carefully as extracted text.
 
 Return only the strict structured draft.`;

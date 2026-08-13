@@ -40,6 +40,7 @@ export function createValidDraft(): AutomotiveExtractionDraft {
         ],
         components: [
           {
+            reference: "attuatore-turbo",
             name: "attuatore pressione turbo",
             normalizedName: "turbo_actuator",
             manufacturerIdentifier: "N75",
