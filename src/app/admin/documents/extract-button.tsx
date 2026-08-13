@@ -6,9 +6,14 @@ import { useState } from "react";
 type ExtractButtonProps = {
   documentId: string;
   isRetry: boolean;
+  isReextract?: boolean;
 };
 
-export function ExtractButton({ documentId, isRetry }: ExtractButtonProps) {
+export function ExtractButton({
+  documentId,
+  isRetry,
+  isReextract = false,
+}: ExtractButtonProps) {
   const router = useRouter();
   const [isProcessing, setIsProcessing] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -48,7 +53,9 @@ export function ExtractButton({ documentId, isRetry }: ExtractButtonProps) {
           ? "Processing…"
           : isRetry
             ? "Retry extraction"
-            : "Extract"}
+            : isReextract
+              ? "Re-extract"
+              : "Extract"}
       </button>
       {error ? (
         <p role="alert" className="max-w-52 text-right text-xs text-red-700">

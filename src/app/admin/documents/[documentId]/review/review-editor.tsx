@@ -25,6 +25,7 @@ type FieldDefinition = {
   kind?: "text" | "textarea" | "number" | "checkbox" | "select";
   options?: readonly string[];
   required?: boolean;
+  internal?: boolean;
 };
 type Warning = { text: string; tone?: "danger" | "warning" };
 
@@ -58,7 +59,7 @@ const applicabilityFields: FieldDefinition[] = [
 
 const faultCodeFields: FieldDefinition[] = [
   { key: "rawCode", label: "Code as written", required: true },
-  { key: "normalizedCode", label: "Normalized code" },
+  { key: "normalizedCode", label: "Normalized code", internal: true },
   { key: "manufacturerCode", label: "Manufacturer code" },
   { key: "description", label: "Description", kind: "textarea" },
   {
@@ -73,7 +74,7 @@ const faultCodeFields: FieldDefinition[] = [
 
 const symptomFields: FieldDefinition[] = [
   { key: "label", label: "Symptom", required: true },
-  { key: "normalizedLabel", label: "Normalized symptom" },
+  { key: "normalizedLabel", label: "Normalized symptom", internal: true },
   { key: "details", label: "Details", kind: "textarea" },
   { key: "operatingCondition", label: "Operating condition", kind: "textarea" },
   sourcePageField,
@@ -81,7 +82,7 @@ const symptomFields: FieldDefinition[] = [
 
 const componentFields: FieldDefinition[] = [
   { key: "name", label: "Component", required: true },
-  { key: "normalizedName", label: "Normalized name" },
+  { key: "normalizedName", label: "Normalized name", internal: true },
   { key: "manufacturerIdentifier", label: "Identifier (N75, G581, etc.)" },
   { key: "system", label: "System" },
   { key: "role", label: "Role" },
@@ -369,8 +370,7 @@ function ItemFields<T extends object>({
     <div className="grid gap-4 md:grid-cols-2">
       {fields.map((field) => {
         const value = record[field.key];
-        const sharedClass =
-          "mt-1 w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-950 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-100";
+        const sharedClass = `mt-1 w-full rounded-lg border px-3 py-2 text-sm text-slate-950 focus:outline-none focus:ring-2 ${field.internal ? "border-violet-300 bg-violet-50 focus:border-violet-500 focus:ring-violet-100" : "border-slate-300 bg-white focus:border-blue-500 focus:ring-blue-100"}`;
         const update = (nextValue: string | boolean) =>
           onChange({ ...item, [field.key]: parseValue(field, nextValue) });
         return (
@@ -381,6 +381,11 @@ function ItemFields<T extends object>({
             <span className="text-xs font-semibold uppercase tracking-wide text-slate-600">
               {field.label}
               {field.required ? " *" : ""}
+              {field.internal ? (
+                <span className="ml-2 rounded bg-violet-100 px-1.5 py-0.5 text-[10px] text-violet-800 normal-case tracking-normal">
+                  Internal search key
+                </span>
+              ) : null}
             </span>
             {field.kind === "checkbox" ? (
               <span className="mt-2 flex items-center gap-2 text-sm text-slate-700">
@@ -868,6 +873,9 @@ export function ReviewEditor({
           <h1 className="mt-2 break-words text-2xl font-semibold text-slate-950">
             {originalFilename}
           </h1>
+          <p className="mt-3 inline-flex rounded-full bg-emerald-50 px-3 py-1 text-sm font-semibold text-emerald-800">
+            Source language: {draft.document.language || "Not detected"}
+          </p>
           <p className="mt-2 text-sm text-slate-600">
             Latest successful extraction
             {completedAt ? ` · ${new Date(completedAt).toLocaleString()}` : ""}.

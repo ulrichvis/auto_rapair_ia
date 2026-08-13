@@ -4,6 +4,9 @@ const nullableText = z.string().nullable();
 const nullableInteger = z.number().int().nullable();
 const nullableNumber = z.number().nullable();
 const sourcePage = z.number().int().positive().nullable();
+const sourceLanguage = nullableText.describe(
+  "Main source PDF language as a standard short code when practical, such as it, fr, de, or en.",
+);
 
 const applicabilitySchema = z.object({
   brand: nullableText,
@@ -165,7 +168,7 @@ export const automotiveExtractionDraftSchema = z.object({
     detectedTitle: nullableText,
     bulletinReference: nullableText,
     publisher: nullableText,
-    language: nullableText,
+    language: sourceLanguage,
     claimedPageCount: nullableInteger,
     completenessNotes: nullableText,
   }),

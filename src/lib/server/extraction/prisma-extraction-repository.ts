@@ -55,8 +55,8 @@ export const prismaExtractionRepository: ExtractionRepository = {
   },
 
   async completeRun(documentId, runId, result) {
-    await prisma.$transaction([
-      prisma.ingestionRun.update({
+    await prisma.$transaction(async (transaction) => {
+      await transaction.ingestionRun.update({
         where: { id: runId },
         data: {
           status: "SUCCESS",
@@ -69,12 +69,21 @@ export const prismaExtractionRepository: ExtractionRepository = {
           errorMessage: null,
           completedAt: new Date(),
         },
-      }),
-      prisma.sourceDocument.update({
+      });
+      await transaction.sourceDocument.update({
         where: { id: documentId },
         data: { processingStatus: "REVIEW_REQUIRED" },
-      }),
-    ]);
+      });
+
+      const detectedLanguage = result.draft.document.language;
+
+      if (detectedLanguage) {
+        await transaction.sourceDocument.updateMany({
+          where: { id: documentId, language: null },
+          data: { language: detectedLanguage },
+        });
+      }
+    });
   },
 
   async failRun(documentId, runId, message) {

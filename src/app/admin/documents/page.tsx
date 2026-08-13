@@ -33,6 +33,11 @@ export default async function AdminDocumentsPage() {
         take: 1,
         select: { errorMessage: true },
       },
+      _count: {
+        select: {
+          ingestionRuns: { where: { status: "SUCCESS" } },
+        },
+      },
     },
   });
 
@@ -67,7 +72,8 @@ export default async function AdminDocumentsPage() {
               {documents.map((document) => {
                 const canExtract =
                   document.processingStatus === "PENDING" ||
-                  document.processingStatus === "FAILED";
+                  document.processingStatus === "FAILED" ||
+                  document.processingStatus === "REVIEW_REQUIRED";
                 const latestError = document.ingestionRuns[0]?.errorMessage;
 
                 return (
@@ -90,7 +96,7 @@ export default async function AdminDocumentsPage() {
                     </div>
 
                     <div className="flex flex-col items-end gap-2">
-                      {document.processingStatus === "REVIEW_REQUIRED" ? (
+                      {document._count.ingestionRuns > 0 ? (
                         <Link
                           href={`/admin/documents/${document.id}/review`}
                           className="rounded-lg bg-blue-700 px-3 py-2 text-sm font-semibold text-white hover:bg-blue-600"
@@ -102,6 +108,9 @@ export default async function AdminDocumentsPage() {
                         <ExtractButton
                           documentId={document.id}
                           isRetry={document.processingStatus === "FAILED"}
+                          isReextract={
+                            document.processingStatus === "REVIEW_REQUIRED"
+                          }
                         />
                       ) : null}
                     </div>

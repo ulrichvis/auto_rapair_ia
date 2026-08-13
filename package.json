@@ -8,7 +8,7 @@
     "start": "next start",
     "lint": "eslint .",
     "lint:fix": "eslint . --fix",
-    "test": "tsc -p tsconfig.test.json && node --test .test-dist/extraction/automotive-draft-schema.test.js .test-dist/extraction/extraction-service.test.js",
+    "test": "tsc -p tsconfig.test.json && node --test .test-dist/extraction/automotive-draft-schema.test.js .test-dist/extraction/extraction-instructions.test.js .test-dist/extraction/extraction-service.test.js",
     "format": "prettier . --write",
     "format:check": "prettier . --check",
     "db:generate": "prisma generate",
