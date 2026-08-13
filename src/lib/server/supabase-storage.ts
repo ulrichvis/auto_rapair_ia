@@ -103,3 +103,18 @@ export async function removePrivatePdf(
     console.error("Failed to remove orphaned PDF from private storage.");
   }
 }
+
+export async function downloadPrivatePdf(storagePath: string) {
+  const config = getStorageConfig();
+  await requirePrivatePdfBucket();
+  const response = await fetch(
+    `${config.baseUrl}/storage/v1/object/${encodeURIComponent(config.bucketName)}/${encodeStoragePath(storagePath)}`,
+    { headers: config.headers, cache: "no-store" },
+  );
+
+  if (!response.ok) {
+    throw new Error("The private PDF could not be retrieved.");
+  }
+
+  return Buffer.from(await response.arrayBuffer());
+}

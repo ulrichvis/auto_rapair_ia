@@ -10,6 +10,7 @@ datasource db {
 enum DocumentProcessingStatus {
   PENDING
   PROCESSING
+  REVIEW_REQUIRED
   COMPLETED
   FAILED
 }
@@ -17,6 +18,8 @@ enum DocumentProcessingStatus {
 enum IngestionStatus {
   PENDING
   RUNNING
+  PROCESSING
+  SUCCESS
   COMPLETED
   FAILED
   PURGED
@@ -128,6 +131,10 @@ model IngestionRun {
   status           IngestionStatus @default(PENDING)
   extractor        String?
   extractorVersion String?
+  model            String?
+  inputTokens      Int?
+  outputTokens     Int?
+  totalTokens      Int?
   rawOutput        Json?
   errorMessage     String?
   startedAt        DateTime        @default(now())

@@ -1,0 +1,14 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "allowJs": false,
+    "incremental": false,
+    "module": "commonjs",
+    "moduleResolution": "node",
+    "noEmit": false,
+    "outDir": ".test-dist",
+    "rootDir": "src/lib",
+    "types": ["node"]
+  },
+  "include": ["src/lib/extraction/**/*.ts"]
+}

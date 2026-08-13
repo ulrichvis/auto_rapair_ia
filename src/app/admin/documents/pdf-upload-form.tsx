@@ -1,6 +1,7 @@
 "use client";
 
 import { FormEvent, useRef, useState } from "react";
+import { useRouter } from "next/navigation";
 
 const MAX_PDF_SIZE_BYTES = 4 * 1024 * 1024;
 
@@ -17,6 +18,7 @@ function formatFileSize(bytes: number) {
 }
 
 export function PdfUploadForm() {
+  const router = useRouter();
   const formRef = useRef<HTMLFormElement>(null);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [isUploading, setIsUploading] = useState(false);
@@ -68,6 +70,7 @@ export function PdfUploadForm() {
       );
       setSelectedFile(null);
       formRef.current?.reset();
+      router.refresh();
     } catch (reason) {
       setError(
         reason instanceof Error
