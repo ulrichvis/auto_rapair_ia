@@ -86,6 +86,13 @@ export const prismaExtractionRepository: ExtractionRepository = {
     });
   },
 
+  async recordProcessing(runId, metadata) {
+    await prisma.ingestionRun.update({
+      where: { id: runId },
+      data: metadata,
+    });
+  },
+
   async failRun(documentId, runId, message) {
     await prisma.$transaction([
       prisma.ingestionRun.update({

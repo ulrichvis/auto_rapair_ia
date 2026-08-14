@@ -126,24 +126,28 @@ model SourceDocument {
 }
 
 model IngestionRun {
-  id               String          @id @default(cuid())
-  sourceDocumentId String
-  status           IngestionStatus @default(PENDING)
-  extractor        String?
-  extractorVersion String?
-  model            String?
-  inputTokens      Int?
-  outputTokens     Int?
-  totalTokens      Int?
-  rawOutput        Json?
-  errorMessage     String?
-  startedAt        DateTime        @default(now())
-  completedAt      DateTime?
-  reviewedAt       DateTime?
-  importedAt       DateTime?
-  purgedAt         DateTime?
-  sourceDocument   SourceDocument  @relation(fields: [sourceDocumentId], references: [id], onDelete: Cascade)
-  importedCases    TechnicalCase[] @relation("ImportedKnowledge")
+  id                      String          @id @default(cuid())
+  sourceDocumentId        String
+  status                  IngestionStatus @default(PENDING)
+  extractor               String?
+  extractorVersion        String?
+  model                   String?
+  inputTokens             Int?
+  outputTokens            Int?
+  totalTokens             Int?
+  rawOutput               Json?
+  errorMessage            String?
+  originalFileSizeBytes   Int?
+  processingFileSizeBytes Int?
+  processingWasOptimized  Boolean?
+  processingWarning       String?
+  startedAt               DateTime        @default(now())
+  completedAt             DateTime?
+  reviewedAt              DateTime?
+  importedAt              DateTime?
+  purgedAt                DateTime?
+  sourceDocument          SourceDocument  @relation(fields: [sourceDocumentId], references: [id], onDelete: Cascade)
+  importedCases           TechnicalCase[] @relation("ImportedKnowledge")
 
   @@index([sourceDocumentId])
   @@index([status])

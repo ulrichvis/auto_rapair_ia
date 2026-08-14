@@ -3,8 +3,7 @@
 import { FormEvent, useRef, useState } from "react";
 import { useLocale, useTranslations } from "next-intl";
 import { useRouter } from "next/navigation";
-
-const MAX_PDF_SIZE_BYTES = 4 * 1024 * 1024;
+import { MAX_PDF_SIZE_BYTES } from "@/lib/documents/pdf-validation";
 
 type UploadResponse = {
   status?: "created" | "duplicate";

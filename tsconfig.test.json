@@ -14,7 +14,9 @@
     "src/i18n/**/*.test.ts",
     "src/i18n/locale.ts",
     "src/i18n/messages/*.json",
+    "src/lib/documents/**/*.ts",
     "src/lib/extraction/**/*.ts",
-    "src/lib/import/**/*.ts"
+    "src/lib/import/**/*.ts",
+    "src/lib/review/**/*.ts"
   ]
 }

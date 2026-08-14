@@ -3,6 +3,12 @@ import "server-only";
 import { createHash } from "node:crypto";
 
 import { Prisma } from "@/generated/prisma/client";
+import {
+  PdfValidationError,
+  type PdfValidationErrorCode,
+  validatePdfMetadata,
+  validatePdfSignature,
+} from "@/lib/documents/pdf-validation";
 import { prisma } from "@/lib/server/prisma";
 import {
   removePrivatePdf,
@@ -10,17 +16,14 @@ import {
   uploadPrivatePdf,
 } from "@/lib/server/supabase-storage";
 
-export const MAX_PDF_SIZE_BYTES = 4 * 1024 * 1024;
-
-const PDF_MIME_TYPE = "application/pdf";
-const PDF_SIGNATURE = "%PDF-";
+export { MAX_PDF_SIZE_BYTES } from "@/lib/documents/pdf-validation";
 
 export class PdfUploadError extends Error {
   constructor(
-    message: string,
+    readonly code: PdfValidationErrorCode | "FILE_REQUIRED",
     readonly status: number,
   ) {
-    super(message);
+    super(code);
     this.name = "PdfUploadError";
   }
 }
@@ -37,45 +40,6 @@ export type PdfUploadResult =
       originalFilename: string;
     };
 
-function getSafeOriginalFilename(filename: string) {
-  const basename = filename.split(/[\\/]/).at(-1)?.trim();
-
-  if (!basename || basename.length > 255) {
-    throw new PdfUploadError("The PDF filename is invalid or too long.", 400);
-  }
-
-  return basename;
-}
-
-function validatePdfMetadata(file: File) {
-  const originalFilename = getSafeOriginalFilename(file.name);
-
-  if (
-    file.type.toLowerCase() !== PDF_MIME_TYPE ||
-    !originalFilename.toLowerCase().endsWith(".pdf")
-  ) {
-    throw new PdfUploadError("Select a PDF file.", 400);
-  }
-
-  if (file.size === 0) {
-    throw new PdfUploadError("The selected PDF is empty.", 400);
-  }
-
-  if (file.size > MAX_PDF_SIZE_BYTES) {
-    throw new PdfUploadError("The PDF must be 4 MiB or smaller.", 413);
-  }
-
-  return originalFilename;
-}
-
-function validatePdfSignature(bytes: Buffer) {
-  if (
-    bytes.subarray(0, PDF_SIGNATURE.length).toString("ascii") !== PDF_SIGNATURE
-  ) {
-    throw new PdfUploadError("The selected file is not a valid PDF.", 400);
-  }
-}
-
 function isUniqueConstraintError(error: unknown) {
   return (
     error instanceof Prisma.PrismaClientKnownRequestError &&
@@ -84,9 +48,32 @@ function isUniqueConstraintError(error: unknown) {
 }
 
 export async function uploadPdfDocument(file: File): Promise<PdfUploadResult> {
-  const originalFilename = validatePdfMetadata(file);
+  let originalFilename: string;
+
+  try {
+    originalFilename = validatePdfMetadata(file);
+  } catch (error) {
+    if (error instanceof PdfValidationError) {
+      throw new PdfUploadError(
+        error.code,
+        error.code === "TOO_LARGE" ? 413 : 400,
+      );
+    }
+
+    throw error;
+  }
+
   const bytes = Buffer.from(await file.arrayBuffer());
-  validatePdfSignature(bytes);
+
+  try {
+    validatePdfSignature(bytes);
+  } catch (error) {
+    if (error instanceof PdfValidationError) {
+      throw new PdfUploadError(error.code, 400);
+    }
+
+    throw error;
+  }
   const sha256 = createHash("sha256").update(bytes).digest("hex");
 
   const existingDocument = await prisma.sourceDocument.findUnique({

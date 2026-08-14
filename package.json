@@ -8,21 +8,25 @@
     "start": "next start",
     "lint": "eslint .",
     "lint:fix": "eslint . --fix",
-    "test": "tsc -p tsconfig.test.json && node --test .test-dist/i18n/locale.test.js .test-dist/i18n/messages.test.js .test-dist/lib/extraction/automotive-draft-schema.test.js .test-dist/lib/extraction/extraction-instructions.test.js .test-dist/lib/extraction/extraction-service.test.js .test-dist/lib/import/knowledge-import-plan.test.js .test-dist/lib/import/import-transaction.test.js",
+    "test": "tsc -p tsconfig.test.json && node --test .test-dist/i18n/locale.test.js .test-dist/i18n/messages.test.js .test-dist/lib/documents/pdf-validation.test.js .test-dist/lib/extraction/automotive-draft-schema.test.js .test-dist/lib/extraction/extraction-instructions.test.js .test-dist/lib/extraction/extraction-service.test.js .test-dist/lib/extraction/pdf-processing.test.js .test-dist/lib/import/knowledge-import-plan.test.js .test-dist/lib/import/import-transaction.test.js .test-dist/lib/review/review-field-path.test.js",
     "format": "prettier . --write",
     "format:check": "prettier . --check",
     "db:generate": "prisma generate",
     "db:validate": "prisma validate"
   },
   "dependencies": {
+    "@embedpdf/engines": "^2.15.0",
+    "@embedpdf/pdfium": "^2.15.0",
     "@prisma/adapter-pg": "^7.9.1",
     "@prisma/client": "^7.9.1",
     "next": "16.3.0",
     "next-intl": "^4.13.6",
     "openai": "^6.15.0",
+    "pdf-lib": "^1.17.1",
     "pg": "^8.23.0",
     "react": "19.2.8",
     "react-dom": "19.2.8",
+    "sharp": "^0.35.3",
     "zod": "^4.4.3"
   },
   "devDependencies": {

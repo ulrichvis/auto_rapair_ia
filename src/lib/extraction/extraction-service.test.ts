@@ -9,6 +9,7 @@ import {
   type SuccessfulExtraction,
 } from "./extraction-service";
 import { createValidDraft } from "./test-fixtures";
+import type { PdfProcessingMetadata } from "./pdf-processing";
 
 class MemoryRepository implements ExtractionRepository {
   document: ExtractionDocument = {
@@ -20,6 +21,7 @@ class MemoryRepository implements ExtractionRepository {
 
   completedResult: SuccessfulExtraction | null = null;
   failedMessage: string | null = null;
+  processingMetadata: PdfProcessingMetadata | null = null;
 
   async findDocument(documentId: string) {
     return documentId === this.document.id ? this.document : null;
@@ -37,6 +39,10 @@ class MemoryRepository implements ExtractionRepository {
   ) {
     this.completedResult = result;
     this.document.processingStatus = "REVIEW_REQUIRED";
+  }
+
+  async recordProcessing(_runId: string, metadata: PdfProcessingMetadata) {
+    this.processingMetadata = metadata;
   }
 
   async failRun(_documentId: string, _runId: string, message: string) {
@@ -80,6 +86,53 @@ test("persists a successful structured draft and usage on the ingestion run", as
   assert.equal(repository.completedResult?.totalTokens, 165);
   assert.deepEqual(repository.completedResult?.draft, createValidDraft());
   assert.equal(repository.failedMessage, null);
+  assert.deepEqual(repository.processingMetadata, {
+    originalFileSizeBytes: 9,
+    processingFileSizeBytes: 9,
+    processingWasOptimized: false,
+    processingWarning: null,
+  });
+});
+
+test("sends an optimized processing copy to extraction and cleans it up", async () => {
+  const repository = new MemoryRepository();
+  const original = Buffer.from("%PDF-original");
+  const optimized = Buffer.from("%PDF-small");
+  let received: Buffer | null = null;
+  let cleaned = false;
+  const provider: ExtractionProvider = {
+    async extractPdf(input) {
+      received = input.pdf;
+      return successfulProvider().extractPdf(input);
+    },
+  };
+  const service = createExtractionService({
+    repository,
+    provider,
+    async loadPdf() {
+      return original;
+    },
+    async preparePdf() {
+      return {
+        pdf: optimized,
+        metadata: {
+          originalFileSizeBytes: original.length,
+          processingFileSizeBytes: optimized.length,
+          processingWasOptimized: true,
+          processingWarning: null,
+        },
+        async cleanup() {
+          cleaned = true;
+        },
+      };
+    },
+  });
+
+  await service.extractDocument(repository.document.id);
+
+  assert.strictEqual(received, optimized);
+  assert.equal(cleaned, true);
+  assert.equal(repository.processingMetadata?.processingWasOptimized, true);
 });
 
 test("persists failure state when the extraction API request fails", async () => {

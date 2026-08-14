@@ -6,6 +6,7 @@ import type {
   ExtractionProvider,
   ExtractionProviderResult,
 } from "./extraction-provider";
+import type { PdfProcessingMetadata, PreparedPdf } from "./pdf-processing";
 
 export type ExtractionDocument = {
   id: string;
@@ -26,6 +27,10 @@ export type SuccessfulExtraction = {
 export interface ExtractionRepository {
   findDocument(documentId: string): Promise<ExtractionDocument | null>;
   startRun(documentId: string): Promise<{ runId: string }>;
+  recordProcessing(
+    runId: string,
+    metadata: PdfProcessingMetadata,
+  ): Promise<void>;
   completeRun(
     documentId: string,
     runId: string,
@@ -38,6 +43,7 @@ export type ExtractionServiceDependencies = {
   repository: ExtractionRepository;
   provider: ExtractionProvider;
   loadPdf(storagePath: string): Promise<Buffer>;
+  preparePdf?(pdf: Buffer): Promise<PreparedPdf>;
 };
 
 export class ExtractionConflictError extends Error {
@@ -71,6 +77,7 @@ export function createExtractionService({
   repository,
   provider,
   loadPdf,
+  preparePdf,
 }: ExtractionServiceDependencies) {
   return {
     async extractDocument(documentId: string) {
@@ -89,14 +96,38 @@ export function createExtractionService({
       const { runId } = await repository.startRun(document.id);
 
       try {
-        const pdf = await loadPdf(document.storagePath);
-        const providerResult = await provider.extractPdf({
-          filename: document.originalFilename,
-          pdf,
-        });
-        const result = toSuccessfulExtraction(providerResult);
+        const originalPdf = await loadPdf(document.storagePath);
+        const prepared = preparePdf
+          ? await preparePdf(originalPdf)
+          : {
+              pdf: originalPdf,
+              metadata: {
+                originalFileSizeBytes: originalPdf.length,
+                processingFileSizeBytes: originalPdf.length,
+                processingWasOptimized: false,
+                processingWarning: null,
+              },
+              async cleanup() {},
+            };
 
-        await repository.completeRun(document.id, runId, result);
+        try {
+          await repository.recordProcessing(runId, prepared.metadata);
+          const providerResult = await provider.extractPdf({
+            filename: document.originalFilename,
+            pdf: prepared.pdf,
+          });
+          const result = toSuccessfulExtraction(providerResult);
+
+          await repository.completeRun(document.id, runId, result);
+        } finally {
+          await prepared.cleanup().catch((cleanupError) => {
+            const message =
+              cleanupError instanceof Error
+                ? cleanupError.message
+                : "unknown cleanup failure";
+            console.warn(`Temporary PDF cleanup failed: ${message}`);
+          });
+        }
 
         return { runId, status: "REVIEW_REQUIRED" as const };
       } catch (error) {

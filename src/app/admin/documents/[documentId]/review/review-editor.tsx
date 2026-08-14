@@ -5,6 +5,11 @@ import { useLocale, useTranslations } from "next-intl";
 import { useState } from "react";
 
 import type { AutomotiveExtractionDraft } from "@/lib/extraction/automotive-draft-schema";
+import {
+  reviewFieldId,
+  reviewNodeId,
+  validationTargetIds,
+} from "@/lib/review/review-field-path";
 
 type DraftCase = AutomotiveExtractionDraft["cases"][number];
 type Applicability = DraftCase["applicability"][number];
@@ -29,6 +34,7 @@ type FieldDefinition = {
   internal?: boolean;
 };
 type Warning = { key: string; tone?: "danger" | "warning" };
+type ValidationIssue = { path: string; message: string };
 
 const sourcePageField: FieldDefinition = {
   key: "sourcePage",
@@ -418,10 +424,16 @@ function parseValue(
 function ItemFields<T extends object>({
   item,
   fields,
+  basePath,
+  invalidPaths,
+  onFieldChange,
   onChange,
 }: {
   item: T;
   fields: FieldDefinition[];
+  basePath: string;
+  invalidPaths: ReadonlySet<string>;
+  onFieldChange: (path: string) => void;
   onChange: (item: T) => void;
 }) {
   const t = useTranslations("Review");
@@ -430,12 +442,18 @@ function ItemFields<T extends object>({
     <div className="grid gap-4 md:grid-cols-2">
       {fields.map((field) => {
         const value = record[field.key];
-        const sharedClass = `mt-1 w-full rounded-lg border px-3 py-2 text-sm text-slate-950 focus:outline-none focus:ring-2 ${field.internal ? "border-violet-300 bg-violet-50 focus:border-violet-500 focus:ring-violet-100" : "border-slate-300 bg-white focus:border-blue-500 focus:ring-blue-100"}`;
-        const update = (nextValue: string | boolean) =>
+        const fieldPath = `${basePath}.${field.key}`;
+        const fieldId = reviewFieldId(fieldPath);
+        const isInvalid = invalidPaths.has(fieldPath);
+        const sharedClass = `mt-1 w-full scroll-mt-24 rounded-lg border px-3 py-2 text-sm text-slate-950 focus:outline-none focus:ring-2 ${isInvalid ? "border-red-500 bg-red-50 ring-2 ring-red-200 focus:border-red-600 focus:ring-red-200" : field.internal ? "border-violet-300 bg-violet-50 focus:border-violet-500 focus:ring-violet-100" : "border-slate-300 bg-white focus:border-blue-500 focus:ring-blue-100"}`;
+        const update = (nextValue: string | boolean) => {
           onChange({ ...item, [field.key]: parseValue(field, nextValue) });
+          onFieldChange(fieldPath);
+        };
         return (
           <label
             key={field.key}
+            htmlFor={fieldId}
             className={field.kind === "textarea" ? "md:col-span-2" : ""}
           >
             <span className="text-xs font-semibold uppercase tracking-wide text-slate-600">
@@ -450,7 +468,9 @@ function ItemFields<T extends object>({
             {field.kind === "checkbox" ? (
               <span className="mt-2 flex items-center gap-2 text-sm text-slate-700">
                 <input
+                  id={fieldId}
                   type="checkbox"
+                  aria-invalid={isInvalid || undefined}
                   checked={Boolean(value)}
                   onChange={(event) => update(event.target.checked)}
                 />{" "}
@@ -458,13 +478,17 @@ function ItemFields<T extends object>({
               </span>
             ) : field.kind === "textarea" ? (
               <textarea
+                id={fieldId}
                 rows={3}
+                aria-invalid={isInvalid || undefined}
                 value={value == null ? "" : String(value)}
                 onChange={(event) => update(event.target.value)}
                 className={sharedClass}
               />
             ) : field.kind === "select" ? (
               <select
+                id={fieldId}
+                aria-invalid={isInvalid || undefined}
                 value={value == null ? "" : String(value)}
                 onChange={(event) => update(event.target.value)}
                 className={sharedClass}
@@ -478,7 +502,9 @@ function ItemFields<T extends object>({
               </select>
             ) : (
               <input
+                id={fieldId}
                 type={field.kind === "number" ? "number" : "text"}
+                aria-invalid={isInvalid || undefined}
                 step={field.kind === "number" ? "any" : undefined}
                 value={value == null ? "" : String(value)}
                 onChange={(event) => update(event.target.value)}
@@ -515,6 +541,9 @@ function ArraySection<T extends object>({
   items,
   fields,
   emptyItem,
+  basePath,
+  invalidPaths,
+  onFieldChange,
   onChange,
   warningsForItem,
 }: {
@@ -522,12 +551,18 @@ function ArraySection<T extends object>({
   items: T[];
   fields: FieldDefinition[];
   emptyItem: T;
+  basePath: string;
+  invalidPaths: ReadonlySet<string>;
+  onFieldChange: (path: string) => void;
   onChange: (items: T[]) => void;
   warningsForItem?: (item: T) => Warning[];
 }) {
   const t = useTranslations("Review");
   return (
-    <section className="rounded-xl border border-slate-200 bg-slate-50 p-5">
+    <section
+      id={reviewNodeId(basePath)}
+      className="scroll-mt-24 rounded-xl border border-slate-200 bg-slate-50 p-5"
+    >
       <div className="flex items-center justify-between gap-4">
         <h3 className="font-semibold text-slate-950">{t(titleKey)}</h3>
         <button
@@ -545,7 +580,8 @@ function ArraySection<T extends object>({
           {items.map((item, index) => (
             <article
               key={index}
-              className="rounded-xl border border-slate-200 bg-white p-4"
+              id={reviewNodeId(`${basePath}[${index}]`)}
+              className={`scroll-mt-24 rounded-xl border bg-white p-4 ${[...invalidPaths].some((path) => path === `${basePath}[${index}]` || path.startsWith(`${basePath}[${index}].`)) ? "border-red-300 ring-2 ring-red-100" : "border-slate-200"}`}
             >
               <div className="mb-4 flex items-center justify-between">
                 <p className="text-sm font-semibold text-slate-700">
@@ -567,6 +603,9 @@ function ArraySection<T extends object>({
               <ItemFields
                 item={item}
                 fields={fields}
+                basePath={`${basePath}[${index}]`}
+                invalidPaths={invalidPaths}
+                onFieldChange={onFieldChange}
                 onChange={(updated) =>
                   onChange(
                     items.map((current, itemIndex) =>
@@ -590,10 +629,16 @@ function renumberSteps(steps: ProcedureStep[]) {
 function ProceduresSection({
   procedures,
   hasVariantScope,
+  basePath,
+  invalidPaths,
+  onFieldChange,
   onChange,
 }: {
   procedures: Procedure[];
   hasVariantScope: boolean;
+  basePath: string;
+  invalidPaths: ReadonlySet<string>;
+  onFieldChange: (path: string) => void;
   onChange: (procedures: Procedure[]) => void;
 }) {
   const t = useTranslations("Review");
@@ -605,7 +650,10 @@ function ProceduresSection({
     );
   }
   return (
-    <section className="rounded-xl border border-slate-200 bg-slate-50 p-5">
+    <section
+      id={reviewNodeId(basePath)}
+      className="scroll-mt-24 rounded-xl border border-slate-200 bg-slate-50 p-5"
+    >
       <div className="flex items-center justify-between gap-4">
         <h3 className="font-semibold text-slate-950">{t("procedures")}</h3>
         <button
@@ -634,7 +682,8 @@ function ProceduresSection({
           {procedures.map((procedure, procedureIndex) => (
             <article
               key={procedureIndex}
-              className="rounded-xl border border-slate-200 bg-white p-4"
+              id={reviewNodeId(`${basePath}[${procedureIndex}]`)}
+              className={`scroll-mt-24 rounded-xl border bg-white p-4 ${[...invalidPaths].some((path) => path === `${basePath}[${procedureIndex}]` || path.startsWith(`${basePath}[${procedureIndex}].`)) ? "border-red-300 ring-2 ring-red-100" : "border-slate-200"}`}
             >
               <div className="mb-4 flex items-center justify-between">
                 <p className="font-semibold text-slate-800">
@@ -660,6 +709,9 @@ function ProceduresSection({
               <ItemFields
                 item={procedure}
                 fields={procedureFields}
+                basePath={`${basePath}[${procedureIndex}]`}
+                invalidPaths={invalidPaths}
+                onFieldChange={onFieldChange}
                 onChange={(updated) => updateProcedure(procedureIndex, updated)}
               />
               <div className="mt-5 border-t border-slate-200 pt-5">
@@ -699,7 +751,10 @@ function ProceduresSection({
                     return (
                       <article
                         key={stepIndex}
-                        className="rounded-lg border border-slate-200 bg-slate-50 p-4"
+                        id={reviewNodeId(
+                          `${basePath}[${procedureIndex}].steps[${stepIndex}]`,
+                        )}
+                        className={`scroll-mt-24 rounded-lg border bg-slate-50 p-4 ${[...invalidPaths].some((path) => path === `${basePath}[${procedureIndex}].steps[${stepIndex}]` || path.startsWith(`${basePath}[${procedureIndex}].steps[${stepIndex}].`)) ? "border-red-300 ring-2 ring-red-100" : "border-slate-200"}`}
                       >
                         <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
                           <p className="text-sm font-semibold">
@@ -766,6 +821,9 @@ function ProceduresSection({
                         <ItemFields
                           item={step}
                           fields={stepFields}
+                          basePath={`${basePath}[${procedureIndex}].steps[${stepIndex}]`}
+                          invalidPaths={invalidPaths}
+                          onFieldChange={onFieldChange}
                           onChange={(updated) =>
                             updateProcedure(procedureIndex, {
                               ...procedure,
@@ -883,7 +941,10 @@ export function ReviewEditor({
   const [isImporting, setIsImporting] = useState(false);
   const [importedAt, setImportedAt] = useState(initialImportedAt);
   const [importedCases, setImportedCases] = useState(initialImportedCases);
-  const [validationIssues, setValidationIssues] = useState<string[]>([]);
+  const [validationIssues, setValidationIssues] = useState<ValidationIssue[]>(
+    [],
+  );
+  const invalidPaths = new Set(validationIssues.map((issue) => issue.path));
   const [message, setMessage] = useState<{
     tone: "success" | "error";
     text: string;
@@ -896,7 +957,22 @@ export function ReviewEditor({
       return next;
     });
     setMessage(null);
-    setValidationIssues([]);
+  }
+  function clearFieldIssue(path: string) {
+    setValidationIssues((current) =>
+      current.filter((issue) => issue.path !== path),
+    );
+  }
+  function goToValidationIssue(path: string) {
+    const target = validationTargetIds(path)
+      .map((id) => document.getElementById(id))
+      .find(
+        (element): element is HTMLElement => element instanceof HTMLElement,
+      );
+
+    if (!target) return;
+    target.scrollIntoView({ behavior: "smooth", block: "center" });
+    window.setTimeout(() => target.focus({ preventScroll: true }), 350);
   }
   async function saveDraft(showSuccess = true) {
     if (importedAt) return false;
@@ -960,10 +1036,10 @@ export function ReviewEditor({
         error?: string;
         importedAt?: string;
         cases?: Array<{ id: string; title: string }>;
-        issues?: Array<{ message: string }>;
+        issues?: ValidationIssue[];
       };
       if (!response.ok) {
-        setValidationIssues(result.issues?.map((issue) => issue.message) ?? []);
+        setValidationIssues(result.issues ?? []);
         throw new Error(result.error ?? t("importFailed"));
       }
 
@@ -1056,7 +1132,18 @@ export function ReviewEditor({
           </h2>
           <ul className="mt-3 list-disc space-y-1 pl-5 text-sm text-red-800">
             {validationIssues.map((issue, index) => (
-              <li key={`${index}-${issue}`}>{issue}</li>
+              <li key={`${index}-${issue.path}`}>
+                <button
+                  type="button"
+                  onClick={() => goToValidationIssue(issue.path)}
+                  className="text-left underline decoration-red-400 underline-offset-2 hover:text-red-950 focus:outline-none focus:ring-2 focus:ring-red-500"
+                >
+                  {issue.message}
+                  <span className="ml-2 whitespace-nowrap font-semibold">
+                    {t("goToField")}
+                  </span>
+                </button>
+              </li>
             ))}
           </ul>
         </section>
@@ -1066,13 +1153,19 @@ export function ReviewEditor({
         disabled={Boolean(importedAt)}
         className="min-w-0 disabled:opacity-75"
       >
-        <section className="mb-8 rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
+        <section
+          id={reviewNodeId("document")}
+          className="scroll-mt-24 mb-8 rounded-2xl border border-slate-200 bg-white p-6 shadow-sm"
+        >
           <h2 className="text-xl font-semibold text-slate-950">
             {t("document")}
           </h2>
           <div className="mt-5">
             <ItemFields
               item={draft.document}
+              basePath="document"
+              invalidPaths={invalidPaths}
+              onFieldChange={clearFieldIssue}
               fields={[
                 { key: "detectedTitle", labelKey: "detectedTitle" },
                 { key: "bulletinReference", labelKey: "bulletinReference" },
@@ -1098,7 +1191,7 @@ export function ReviewEditor({
           </div>
         </section>
 
-        <div className="space-y-8">
+        <div id={reviewNodeId("cases")} className="scroll-mt-24 space-y-8">
           {draft.cases.map((technicalCase, caseIndex) => {
             const hasVariantScope =
               technicalCase.applicability.some((item) =>
@@ -1120,7 +1213,8 @@ export function ReviewEditor({
             return (
               <article
                 key={caseIndex}
-                className="rounded-2xl border border-slate-300 bg-white p-6 shadow-sm"
+                id={reviewNodeId(`cases[${caseIndex}]`)}
+                className={`scroll-mt-24 rounded-2xl border bg-white p-6 shadow-sm ${[...invalidPaths].some((path) => path === `cases[${caseIndex}]` || path.startsWith(`cases[${caseIndex}].`)) ? "border-red-300 ring-2 ring-red-100" : "border-slate-300"}`}
               >
                 <div className="mb-6 flex items-center justify-between gap-4">
                   <div>
@@ -1149,6 +1243,9 @@ export function ReviewEditor({
                     <h3 className="mb-4 font-semibold">{t("general")}</h3>
                     <ItemFields
                       item={technicalCase}
+                      basePath={`cases[${caseIndex}]`}
+                      invalidPaths={invalidPaths}
+                      onFieldChange={clearFieldIssue}
                       fields={[
                         { key: "title", labelKey: "title", required: true },
                         { key: "primarySystem", labelKey: "primarySystem" },
@@ -1168,6 +1265,9 @@ export function ReviewEditor({
                   </section>
                   <ArraySection
                     titleKey="applicability"
+                    basePath={`cases[${caseIndex}].applicability`}
+                    invalidPaths={invalidPaths}
+                    onFieldChange={clearFieldIssue}
                     items={technicalCase.applicability}
                     fields={applicabilityFields}
                     emptyItem={emptyApplicability}
@@ -1178,6 +1278,9 @@ export function ReviewEditor({
                   />
                   <ArraySection
                     titleKey="faultCodes"
+                    basePath={`cases[${caseIndex}].faultCodes`}
+                    invalidPaths={invalidPaths}
+                    onFieldChange={clearFieldIssue}
                     items={technicalCase.faultCodes}
                     fields={faultCodeFields}
                     emptyItem={emptyFaultCode}
@@ -1188,6 +1291,9 @@ export function ReviewEditor({
                   />
                   <ArraySection
                     titleKey="symptoms"
+                    basePath={`cases[${caseIndex}].symptoms`}
+                    invalidPaths={invalidPaths}
+                    onFieldChange={clearFieldIssue}
                     items={technicalCase.symptoms}
                     fields={symptomFields}
                     emptyItem={emptySymptom}
@@ -1197,6 +1303,9 @@ export function ReviewEditor({
                   />
                   <ArraySection
                     titleKey="components"
+                    basePath={`cases[${caseIndex}].components`}
+                    invalidPaths={invalidPaths}
+                    onFieldChange={clearFieldIssue}
                     items={technicalCase.components}
                     fields={componentFields}
                     emptyItem={emptyComponent}
@@ -1206,6 +1315,9 @@ export function ReviewEditor({
                   />
                   <ArraySection
                     titleKey="causes"
+                    basePath={`cases[${caseIndex}].causes`}
+                    invalidPaths={invalidPaths}
+                    onFieldChange={clearFieldIssue}
                     items={technicalCase.causes}
                     fields={causeFields}
                     emptyItem={emptyCause}
@@ -1216,6 +1328,9 @@ export function ReviewEditor({
                   />
                   <ProceduresSection
                     procedures={technicalCase.procedures}
+                    basePath={`cases[${caseIndex}].procedures`}
+                    invalidPaths={invalidPaths}
+                    onFieldChange={clearFieldIssue}
                     hasVariantScope={hasVariantScope}
                     onChange={(items) =>
                       replaceCase({ ...technicalCase, procedures: items })
@@ -1223,6 +1338,9 @@ export function ReviewEditor({
                   />
                   <ArraySection
                     titleKey="measurements"
+                    basePath={`cases[${caseIndex}].measurements`}
+                    invalidPaths={invalidPaths}
+                    onFieldChange={clearFieldIssue}
                     items={technicalCase.measurements}
                     fields={measurementFields}
                     emptyItem={emptyMeasurement}
@@ -1235,6 +1353,9 @@ export function ReviewEditor({
                   />
                   <ArraySection
                     titleKey="solutions"
+                    basePath={`cases[${caseIndex}].solutions`}
+                    invalidPaths={invalidPaths}
+                    onFieldChange={clearFieldIssue}
                     items={technicalCase.solutions}
                     fields={solutionFields}
                     emptyItem={emptySolution}
@@ -1244,6 +1365,9 @@ export function ReviewEditor({
                   />
                   <ArraySection
                     titleKey="notes"
+                    basePath={`cases[${caseIndex}].notes`}
+                    invalidPaths={invalidPaths}
+                    onFieldChange={clearFieldIssue}
                     items={technicalCase.notes}
                     fields={noteFields}
                     emptyItem={emptyNote}
@@ -1253,6 +1377,9 @@ export function ReviewEditor({
                   />
                   <ArraySection
                     titleKey="parts"
+                    basePath={`cases[${caseIndex}].parts`}
+                    invalidPaths={invalidPaths}
+                    onFieldChange={clearFieldIssue}
                     items={technicalCase.parts}
                     fields={partFields}
                     emptyItem={emptyPart}

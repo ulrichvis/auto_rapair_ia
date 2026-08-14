@@ -32,7 +32,7 @@ export async function POST(request: Request) {
     const file = formData.get("file");
 
     if (!(file instanceof File)) {
-      throw new PdfUploadError(uploadT("selectOne"), 400);
+      throw new PdfUploadError("FILE_REQUIRED", 400);
     }
 
     const result = await uploadPdfDocument(file);
@@ -43,15 +43,16 @@ export async function POST(request: Request) {
   } catch (error) {
     if (error instanceof PdfUploadError) {
       const translatedMessage = {
-        "Select a PDF file.": uploadT("selectPdf"),
-        "The PDF must be 4 MiB or smaller.": uploadT("tooLarge"),
-        "The PDF filename is invalid or too long.": uploadT("invalidFilename"),
-        "The selected PDF is empty.": uploadT("empty"),
-        "The selected file is not a valid PDF.": uploadT("invalidPdf"),
-      }[error.message];
+        FILE_REQUIRED: uploadT("selectOne"),
+        NOT_PDF: uploadT("selectPdf"),
+        TOO_LARGE: uploadT("tooLarge"),
+        INVALID_FILENAME: uploadT("invalidFilename"),
+        EMPTY: uploadT("empty"),
+        INVALID_PDF: uploadT("invalidPdf"),
+      }[error.code];
 
       return Response.json(
-        { error: translatedMessage ?? error.message },
+        { error: translatedMessage },
         { status: error.status },
       );
     }
