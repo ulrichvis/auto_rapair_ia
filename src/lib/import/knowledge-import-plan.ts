@@ -2,6 +2,8 @@ import type { AutomotiveExtractionDraft } from "../extraction/automotive-draft-s
 
 export type ImportValidationCode =
   | "NO_CASES"
+  | "SINGLE_CASE_REQUIRED"
+  | "EMPTY_APPLICABILITY"
   | "CASE_TITLE_REQUIRED"
   | "FAULT_CODE_REQUIRED"
   | "INVALID_YEAR_RANGE"
@@ -239,6 +241,27 @@ export function buildKnowledgeImportPlan(
 
     technicalCase.applicability.forEach((item, index) => {
       const path = `${casePath}.applicability[${index}]`;
+      const hasMeaningfulScope = [
+        item.brand,
+        item.model,
+        item.generationOrPlatform,
+        item.engineLabel,
+        item.engineFamily,
+        item.engineCode,
+        item.engineCodePattern,
+        item.engineMatchType,
+        item.fuelType,
+        item.transmission,
+        item.variantNotes,
+      ].some((value) => Boolean(text(value)));
+
+      if (
+        !hasMeaningfulScope &&
+        item.yearFrom === null &&
+        item.yearTo === null
+      ) {
+        issues.push({ code: "EMPTY_APPLICABILITY", path });
+      }
       if (
         item.yearFrom !== null &&
         item.yearTo !== null &&

@@ -626,6 +626,13 @@ function renumberSteps(steps: ProcedureStep[]) {
   return steps.map((step, index) => ({ ...step, position: index + 1 }));
 }
 
+function renumberProcedures(procedures: Procedure[]) {
+  return procedures.map((procedure, index) => ({
+    ...procedure,
+    position: index + 1,
+  }));
+}
+
 function ProceduresSection({
   procedures,
   hasVariantScope,
@@ -685,26 +692,63 @@ function ProceduresSection({
               id={reviewNodeId(`${basePath}[${procedureIndex}]`)}
               className={`scroll-mt-24 rounded-xl border bg-white p-4 ${[...invalidPaths].some((path) => path === `${basePath}[${procedureIndex}]` || path.startsWith(`${basePath}[${procedureIndex}].`)) ? "border-red-300 ring-2 ring-red-100" : "border-slate-200"}`}
             >
-              <div className="mb-4 flex items-center justify-between">
+              <div className="mb-4 flex items-center justify-between gap-3">
                 <p className="font-semibold text-slate-800">
                   {t("procedure", { number: procedureIndex + 1 })}
                 </p>
-                <button
-                  type="button"
-                  onClick={() =>
-                    onChange(
-                      procedures
-                        .filter((_, index) => index !== procedureIndex)
-                        .map((item, index) => ({
-                          ...item,
-                          position: index + 1,
-                        })),
-                    )
-                  }
-                  className="text-sm font-medium text-red-700"
-                >
-                  {t("deleteProcedure")}
-                </button>
+                <div className="flex flex-wrap gap-2">
+                  <button
+                    type="button"
+                    disabled={procedureIndex === 0}
+                    onClick={() => {
+                      const reordered = [...procedures];
+                      [
+                        reordered[procedureIndex - 1],
+                        reordered[procedureIndex],
+                      ] = [
+                        reordered[procedureIndex],
+                        reordered[procedureIndex - 1],
+                      ];
+                      onChange(renumberProcedures(reordered));
+                    }}
+                    className="rounded border px-2 py-1 text-xs disabled:opacity-40"
+                  >
+                    {t("moveUp")}
+                  </button>
+                  <button
+                    type="button"
+                    disabled={procedureIndex === procedures.length - 1}
+                    onClick={() => {
+                      const reordered = [...procedures];
+                      [
+                        reordered[procedureIndex],
+                        reordered[procedureIndex + 1],
+                      ] = [
+                        reordered[procedureIndex + 1],
+                        reordered[procedureIndex],
+                      ];
+                      onChange(renumberProcedures(reordered));
+                    }}
+                    className="rounded border px-2 py-1 text-xs disabled:opacity-40"
+                  >
+                    {t("moveDown")}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() =>
+                      onChange(
+                        renumberProcedures(
+                          procedures.filter(
+                            (_, index) => index !== procedureIndex,
+                          ),
+                        ),
+                      )
+                    }
+                    className="text-sm font-medium text-red-700"
+                  >
+                    {t("deleteProcedure")}
+                  </button>
+                </div>
               </div>
               <ItemFields
                 item={procedure}
@@ -918,6 +962,10 @@ function measurementWarnings(
 }
 
 export function ReviewEditor({
+  mode = "document-review",
+  caseId,
+  initialUpdatedAt,
+  caseEditLabels,
   documentId,
   runId,
   originalFilename,
@@ -928,6 +976,14 @@ export function ReviewEditor({
   initialImportedCases,
   initialValidationIssues,
 }: {
+  mode?: "document-review" | "case-edit";
+  caseId?: string;
+  initialUpdatedAt?: string;
+  caseEditLabels?: {
+    eyebrow: string;
+    description: string;
+    back: string;
+  };
   documentId: string;
   runId: string;
   originalFilename: string;
@@ -940,7 +996,9 @@ export function ReviewEditor({
 }) {
   const t = useTranslations("Review");
   const locale = useLocale();
+  const isCaseEdit = mode === "case-edit";
   const [draft, setDraft] = useState(initialDraft);
+  const [updatedAt, setUpdatedAt] = useState(initialUpdatedAt);
   const [isSaving, setIsSaving] = useState(false);
   const [importedAt, setImportedAt] = useState(initialImportedAt);
   const [reviewedAt, setReviewedAt] = useState(initialReviewedAt);
@@ -983,11 +1041,17 @@ export function ReviewEditor({
     setValidationIssues([]);
     try {
       const response = await fetch(
-        `/api/admin/documents/${encodeURIComponent(documentId)}/review`,
+        isCaseEdit
+          ? `/api/admin/cases/${encodeURIComponent(caseId ?? "")}`
+          : `/api/admin/documents/${encodeURIComponent(documentId)}/review`,
         {
           method: "PUT",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ runId, draft }),
+          body: JSON.stringify(
+            isCaseEdit
+              ? { expectedUpdatedAt: updatedAt, draft }
+              : { runId, draft },
+          ),
         },
       );
       const result = (await response.json()) as {
@@ -997,14 +1061,19 @@ export function ReviewEditor({
         cases?: Array<{ id: string; title: string }>;
         draft?: AutomotiveExtractionDraft;
         issues?: ValidationIssue[];
+        updatedAt?: string;
+        reviewedAt?: string;
       };
       if (!response.ok) {
         setValidationIssues(result.issues ?? []);
         throw new Error(result.error ?? t("saveFailed"));
       }
       if (result.draft) setDraft(result.draft);
+      if (result.updatedAt) setUpdatedAt(result.updatedAt);
       setImportedAt(result.importedAt ?? importedAt);
-      setReviewedAt(result.savedAt ?? new Date().toISOString());
+      setReviewedAt(
+        result.reviewedAt ?? result.savedAt ?? new Date().toISOString(),
+      );
       setImportedCases(result.cases ?? []);
       const savedTime = new Intl.DateTimeFormat(locale, {
         timeStyle: "short",
@@ -1027,10 +1096,12 @@ export function ReviewEditor({
       <header className="mb-8 flex flex-col gap-5 rounded-2xl border border-slate-200 bg-white p-6 shadow-sm lg:flex-row lg:items-start lg:justify-between">
         <div>
           <p className="text-sm font-semibold uppercase tracking-[0.18em] text-blue-700">
-            {t("eyebrow")}
+            {isCaseEdit
+              ? (caseEditLabels?.eyebrow ?? t("eyebrow"))
+              : t("eyebrow")}
           </p>
           <h1 className="mt-2 break-words text-2xl font-semibold text-slate-950">
-            {originalFilename}
+            {isCaseEdit ? draft.cases[0]?.title : originalFilename}
           </h1>
           <p className="mt-3 inline-flex rounded-full bg-emerald-50 px-3 py-1 text-sm font-semibold text-emerald-800">
             {t("sourceLanguage", {
@@ -1038,35 +1109,43 @@ export function ReviewEditor({
             })}
           </p>
           <p className="mt-2 text-sm text-slate-600">
-            {completedAt
-              ? t("latestExtraction", {
-                  date: new Intl.DateTimeFormat(locale, {
-                    dateStyle: "medium",
-                    timeStyle: "short",
-                  }).format(new Date(completedAt)),
-                })
-              : t("latestExtractionNoDate")}
+            {isCaseEdit
+              ? (caseEditLabels?.description ?? t("reviewedDescription"))
+              : completedAt
+                ? t("latestExtraction", {
+                    date: new Intl.DateTimeFormat(locale, {
+                      dateStyle: "medium",
+                      timeStyle: "short",
+                    }).format(new Date(completedAt)),
+                  })
+                : t("latestExtractionNoDate")}
           </p>
         </div>
         <div className="flex flex-wrap gap-3">
           <Link
-            href="/admin/documents"
+            href={
+              isCaseEdit
+                ? `/admin/cases/${encodeURIComponent(caseId ?? "")}`
+                : "/admin/documents"
+            }
             className="rounded-lg border border-slate-300 px-4 py-2 text-sm font-semibold hover:bg-slate-50"
           >
-            {t("back")}
+            {isCaseEdit ? (caseEditLabels?.back ?? t("back")) : t("back")}
           </Link>
-          <a
-            href={`/api/admin/documents/${encodeURIComponent(documentId)}/pdf`}
-            target="_blank"
-            rel="noreferrer"
-            className="rounded-lg border border-blue-300 bg-blue-50 px-4 py-2 text-sm font-semibold text-blue-800 hover:bg-blue-100"
-          >
-            {t("openPdf")}
-          </a>
+          {documentId ? (
+            <a
+              href={`/api/admin/documents/${encodeURIComponent(documentId)}/pdf`}
+              target="_blank"
+              rel="noreferrer"
+              className="rounded-lg border border-blue-300 bg-blue-50 px-4 py-2 text-sm font-semibold text-blue-800 hover:bg-blue-100"
+            >
+              {t("openPdf")}
+            </a>
+          ) : null}
         </div>
       </header>
 
-      {importedAt ? (
+      {!isCaseEdit && importedAt ? (
         <section className="mb-8 rounded-2xl border border-emerald-300 bg-emerald-50 p-5">
           <h2 className="font-semibold text-emerald-950">
             {reviewedAt ? t("reviewedTitle") : t("automaticTitle")}
@@ -1117,43 +1196,48 @@ export function ReviewEditor({
       ) : null}
 
       <fieldset className="min-w-0">
-        <section
-          id={reviewNodeId("document")}
-          className="scroll-mt-24 mb-8 rounded-2xl border border-slate-200 bg-white p-6 shadow-sm"
-        >
-          <h2 className="text-xl font-semibold text-slate-950">
-            {t("document")}
-          </h2>
-          <div className="mt-5">
-            <ItemFields
-              item={draft.document}
-              basePath="document"
-              invalidPaths={invalidPaths}
-              onFieldChange={clearFieldIssue}
-              fields={[
-                { key: "detectedTitle", labelKey: "detectedTitle" },
-                { key: "bulletinReference", labelKey: "bulletinReference" },
-                { key: "publisher", labelKey: "publisher" },
-                { key: "language", labelKey: "language" },
-                {
-                  key: "claimedPageCount",
-                  labelKey: "claimedPageCount",
-                  kind: "number",
-                },
-                {
-                  key: "completenessNotes",
-                  labelKey: "completenessNotes",
-                  kind: "textarea",
-                },
-              ]}
-              onChange={(document) =>
-                mutate((next) => {
-                  next.document = document;
-                })
-              }
-            />
-          </div>
-        </section>
+        {!isCaseEdit ? (
+          <section
+            id={reviewNodeId("document")}
+            className="scroll-mt-24 mb-8 rounded-2xl border border-slate-200 bg-white p-6 shadow-sm"
+          >
+            <h2 className="text-xl font-semibold text-slate-950">
+              {t("document")}
+            </h2>
+            <div className="mt-5">
+              <ItemFields
+                item={draft.document}
+                basePath="document"
+                invalidPaths={invalidPaths}
+                onFieldChange={clearFieldIssue}
+                fields={[
+                  { key: "detectedTitle", labelKey: "detectedTitle" },
+                  {
+                    key: "bulletinReference",
+                    labelKey: "bulletinReference",
+                  },
+                  { key: "publisher", labelKey: "publisher" },
+                  { key: "language", labelKey: "language" },
+                  {
+                    key: "claimedPageCount",
+                    labelKey: "claimedPageCount",
+                    kind: "number",
+                  },
+                  {
+                    key: "completenessNotes",
+                    labelKey: "completenessNotes",
+                    kind: "textarea",
+                  },
+                ]}
+                onChange={(document) =>
+                  mutate((next) => {
+                    next.document = document;
+                  })
+                }
+              />
+            </div>
+          </section>
+        ) : null}
 
         <div id={reviewNodeId("cases")} className="scroll-mt-24 space-y-8">
           {draft.cases.map((technicalCase, caseIndex) => {
@@ -1189,17 +1273,19 @@ export function ReviewEditor({
                       {technicalCase.title || t("untitledCase")}
                     </h2>
                   </div>
-                  <button
-                    type="button"
-                    onClick={() =>
-                      mutate((next) => {
-                        next.cases.splice(caseIndex, 1);
-                      })
-                    }
-                    className="text-sm font-semibold text-red-700"
-                  >
-                    {t("deleteCase")}
-                  </button>
+                  {!isCaseEdit ? (
+                    <button
+                      type="button"
+                      onClick={() =>
+                        mutate((next) => {
+                          next.cases.splice(caseIndex, 1);
+                        })
+                      }
+                      className="text-sm font-semibold text-red-700"
+                    >
+                      {t("deleteCase")}
+                    </button>
+                  ) : null}
                 </div>
                 <WarningList warnings={caseWarnings} />
                 <div className="space-y-5">
@@ -1357,17 +1443,19 @@ export function ReviewEditor({
           })}
         </div>
 
-        <button
-          type="button"
-          onClick={() =>
-            mutate((next) => {
-              next.cases.push(emptyCase());
-            })
-          }
-          className="mt-6 rounded-lg border border-slate-300 bg-white px-4 py-2 text-sm font-semibold hover:bg-slate-50"
-        >
-          {t("addCase")}
-        </button>
+        {!isCaseEdit ? (
+          <button
+            type="button"
+            onClick={() =>
+              mutate((next) => {
+                next.cases.push(emptyCase());
+              })
+            }
+            className="mt-6 rounded-lg border border-slate-300 bg-white px-4 py-2 text-sm font-semibold hover:bg-slate-50"
+          >
+            {t("addCase")}
+          </button>
+        ) : null}
       </fieldset>
       <footer className="sticky bottom-0 mt-8 flex flex-col gap-3 rounded-2xl border border-slate-300 bg-white/95 p-4 shadow-lg backdrop-blur sm:flex-row sm:items-center sm:justify-between">
         <div>

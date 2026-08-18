@@ -32,6 +32,15 @@ test("English and Italian catalogs include the knowledge browser UI", () => {
   assert.ok(italian.CaseBrowser.filters.dtc);
   assert.ok(english.CaseDetail.fields.relatedApplicability);
   assert.ok(italian.CaseDetail.fields.relatedApplicability);
+  assert.equal(english.CaseDetail.edit, "Edit knowledge");
+  assert.equal(italian.CaseDetail.edit, "Modifica conoscenza");
+  assert.equal(english.CaseEdit.back, "Back to technical case");
+  assert.equal(italian.CaseEdit.back, "Torna al caso tecnico");
+  assert.equal(english.CaseEdit.save, "Save changes and mark reviewed");
+  assert.equal(
+    italian.CaseEdit.save,
+    "Salva modifiche e contrassegna come verificato",
+  );
 });
 
 test("English and Italian catalogs include the ingestion dashboard UI", () => {

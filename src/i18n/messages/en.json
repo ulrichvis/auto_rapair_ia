@@ -5,6 +5,7 @@
     "documentsTitle": "Documents | AutoRepair Knowledge",
     "reviewTitle": "Review extraction | AutoRepair Knowledge",
     "caseTitle": "Technical case | AutoRepair Knowledge",
+    "caseEditTitle": "Edit technical case | AutoRepair Knowledge",
     "casesTitle": "Knowledge browser | AutoRepair Knowledge"
   },
   "Navigation": {
@@ -310,7 +311,21 @@
       "caseVariantNoApplicability": "Variant-specific information has no applicability record."
     }
   },
+  "CaseEdit": {
+    "eyebrow": "Edit structured knowledge",
+    "description": "Edit the imported relational knowledge. The original PDF and extraction snapshot remain unchanged.",
+    "back": "Back to technical case",
+    "saveBeforeLeaving": "Saving applies your corrections to relational knowledge and marks it as human-reviewed.",
+    "save": "Save changes and mark reviewed"
+  },
   "ApiErrors": {
+    "invalidCaseId": "Invalid technical case ID.",
+    "caseEditJson": "The technical case edit must be submitted as JSON.",
+    "caseEditTooLarge": "The technical case edit is too large.",
+    "invalidCaseEditVersion": "The technical case edit version is invalid.",
+    "caseEditNotFound": "The technical case was not found.",
+    "caseEditConflict": "This technical case changed after the editor was opened, or its source traceability cannot be safely represented. Reload before saving.",
+    "caseEditSaveFailed": "The technical case could not be saved. Try again.",
     "invalidDocumentId": "Invalid document ID.",
     "reviewJson": "The review must be submitted as JSON.",
     "reviewTooLarge": "The review is too large.",
@@ -327,6 +342,8 @@
     "importValidationFailed": "The technical data contains structural issues that must be corrected before it can be saved.",
     "importValidation": {
       "NO_CASES": "{path}: add at least one technical case.",
+      "SINGLE_CASE_REQUIRED": "{path}: post-import editing must contain exactly one technical case.",
+      "EMPTY_APPLICABILITY": "{path}: add a vehicle, engine, year, or variant condition, or delete the empty applicability record.",
       "CASE_TITLE_REQUIRED": "{path}: enter a meaningful case title.",
       "FAULT_CODE_REQUIRED": "{path}: remove the empty fault code or enter its code.",
       "INVALID_YEAR_RANGE": "{path}: the starting year cannot be later than the ending year.",
@@ -389,6 +406,8 @@
   },
   "CaseDetail": {
     "back": "Back to knowledge",
+    "edit": "Edit knowledge",
+    "manuallyReviewed": "Manually reviewed",
     "general": "General",
     "openSource": "Open {source}",
     "primarySource": "Primary source",

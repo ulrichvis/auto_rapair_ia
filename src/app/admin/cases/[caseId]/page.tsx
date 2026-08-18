@@ -162,15 +162,28 @@ export default async function TechnicalCasePage(
           <span className="rounded-full bg-emerald-50 px-2.5 py-1 text-xs font-semibold text-emerald-800">
             {browserT(`status.${technicalCase.validationStatus}`)}
           </span>
+          {technicalCase.reviewedByHuman ? (
+            <span className="rounded-full bg-blue-50 px-2.5 py-1 text-xs font-semibold text-blue-800">
+              {t("manuallyReviewed")}
+            </span>
+          ) : null}
           {technicalCase.primarySystem ? (
             <span className="text-sm text-slate-500">
               {technicalCase.primarySystem}
             </span>
           ) : null}
         </div>
-        <h1 className="mt-3 text-3xl font-semibold text-slate-950">
-          {technicalCase.title}
-        </h1>
+        <div className="mt-3 flex flex-wrap items-start justify-between gap-4">
+          <h1 className="text-3xl font-semibold text-slate-950">
+            {technicalCase.title}
+          </h1>
+          <Link
+            href={`/admin/cases/${encodeURIComponent(technicalCase.id)}/edit`}
+            className="rounded-lg bg-slate-900 px-4 py-2 text-sm font-semibold text-white hover:bg-slate-700"
+          >
+            {t("edit")}
+          </Link>
+        </div>
         {technicalCase.sources.length > 0 ? (
           <div className="mt-5 flex flex-wrap gap-2">
             {technicalCase.sources.map(({ sourceDocument, isPrimary }) => (

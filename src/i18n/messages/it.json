@@ -5,6 +5,7 @@
     "documentsTitle": "Documenti | AutoRepair Knowledge",
     "reviewTitle": "Verifica estrazione | AutoRepair Knowledge",
     "caseTitle": "Caso tecnico | AutoRepair Knowledge",
+    "caseEditTitle": "Modifica caso tecnico | AutoRepair Knowledge",
     "casesTitle": "Consultazione conoscenza | AutoRepair Knowledge"
   },
   "Navigation": {
@@ -310,7 +311,21 @@
       "caseVariantNoApplicability": "L'informazione specifica della variante non ha un record di applicabilità."
     }
   },
+  "CaseEdit": {
+    "eyebrow": "Modifica conoscenza strutturata",
+    "description": "Modifica la conoscenza relazionale importata. Il PDF originale e l'istantanea dell'estrazione rimangono invariati.",
+    "back": "Torna al caso tecnico",
+    "saveBeforeLeaving": "Il salvataggio applica le correzioni alla conoscenza relazionale e la contrassegna come verificata da una persona.",
+    "save": "Salva modifiche e contrassegna come verificato"
+  },
   "ApiErrors": {
+    "invalidCaseId": "ID del caso tecnico non valido.",
+    "caseEditJson": "La modifica del caso tecnico deve essere inviata in formato JSON.",
+    "caseEditTooLarge": "La modifica del caso tecnico è troppo grande.",
+    "invalidCaseEditVersion": "La versione della modifica del caso tecnico non è valida.",
+    "caseEditNotFound": "Caso tecnico non trovato.",
+    "caseEditConflict": "Questo caso tecnico è cambiato dopo l'apertura dell'editor oppure la tracciabilità delle fonti non può essere rappresentata in sicurezza. Ricarica prima di salvare.",
+    "caseEditSaveFailed": "Non è stato possibile salvare il caso tecnico. Riprova.",
     "invalidDocumentId": "ID documento non valido.",
     "reviewJson": "La verifica deve essere inviata in formato JSON.",
     "reviewTooLarge": "La verifica è troppo grande.",
@@ -327,6 +342,8 @@
     "importValidationFailed": "I dati tecnici contengono problemi strutturali da correggere prima del salvataggio.",
     "importValidation": {
       "NO_CASES": "{path}: aggiungi almeno un caso tecnico.",
+      "SINGLE_CASE_REQUIRED": "{path}: la modifica dopo l'importazione deve contenere esattamente un caso tecnico.",
+      "EMPTY_APPLICABILITY": "{path}: aggiungi un veicolo, un motore, un anno o una condizione di variante, oppure elimina il record di applicabilità vuoto.",
       "CASE_TITLE_REQUIRED": "{path}: inserisci un titolo significativo per il caso.",
       "FAULT_CODE_REQUIRED": "{path}: elimina il codice guasto vuoto oppure inserisci il codice.",
       "INVALID_YEAR_RANGE": "{path}: l'anno iniziale non può essere successivo all'anno finale.",
@@ -389,6 +406,8 @@
   },
   "CaseDetail": {
     "back": "Torna alla conoscenza",
+    "edit": "Modifica conoscenza",
+    "manuallyReviewed": "Verificato manualmente",
     "general": "Generale",
     "openSource": "Apri {source}",
     "primarySource": "Fonte principale",
