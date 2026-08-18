@@ -57,7 +57,9 @@ export async function POST(request: Request) {
       );
     }
 
-    console.error("PDF upload failed", error);
+    console.error("PDF upload failed", {
+      message: error instanceof Error ? error.message : "Unknown error",
+    });
 
     return Response.json({ error: uploadT("failedRetry") }, { status: 500 });
   }

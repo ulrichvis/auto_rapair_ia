@@ -28,17 +28,62 @@
     "uploadTitle": "Carica un PDF tecnico",
     "uploadDescription": "Aggiungi un documento sorgente privato. L'estrazione importa automaticamente la conoscenza tecnicamente valida; la verifica umana resta disponibile in seguito.",
     "title": "Documenti",
+    "dashboardDescription": "Controlla l'estrazione e l'importazione, consulta l'utilizzo e apri la conoscenza generata.",
     "empty": "Nessun documento caricato.",
+    "emptyFilter": "Nessun documento corrisponde a questo filtro.",
     "openKnowledge": "Apri conoscenza",
+    "openSourcePdf": "Apri PDF sorgente",
     "editKnowledge": "Verifica o modifica",
     "reviewFailedImport": "Verifica problemi di importazione",
     "failedHelp": "L'estrazione o l'importazione automatica non è riuscita. Puoi riprovare o verificare i dati estratti quando disponibili.",
+    "manuallyReviewed": "Verificato manualmente",
+    "latestExtraction": "Ultima estrazione",
+    "technicalCases": "{count, plural, one {# caso tecnico} other {# casi tecnici}}",
+    "technicalDetails": "Dettagli tecnici",
+    "summary": {
+      "total": "Documenti totali",
+      "processing": "In elaborazione",
+      "imported": "Importati",
+      "failed": "Errori"
+    },
+    "filters": {
+      "label": "Filtra documenti",
+      "all": "Tutti",
+      "uploaded": "Caricati",
+      "processing": "In elaborazione",
+      "imported": "Importati",
+      "failed": "Errori",
+      "reviewed": "Verificati manualmente"
+    },
     "status": {
-      "PENDING": "Pronto per l'estrazione",
-      "PROCESSING": "Elaborazione",
-      "REVIEW_REQUIRED": "Estrazione completata · Verifica facoltativa",
-      "COMPLETED": "Completato",
-      "FAILED": "Estrazione non riuscita"
+      "UPLOADED": "Caricato",
+      "EXTRACTING": "Estrazione in corso",
+      "IMPORTING": "Importazione in corso",
+      "IMPORTED": "Importato",
+      "FAILED": "Errore"
+    },
+    "fields": {
+      "uploadedAt": "Caricato il",
+      "bulletinReference": "Riferimento bollettino",
+      "sourceLanguage": "Lingua sorgente",
+      "originalSize": "Dimensione originale",
+      "processingSize": "Dimensione elaborazione",
+      "optimization": "Ottimizzazione",
+      "model": "Modello",
+      "inputTokens": "Token di input",
+      "outputTokens": "Token di output",
+      "totalTokens": "Token totali"
+    },
+    "optimization": {
+      "optimized": "Copia ottimizzata utilizzata",
+      "original": "PDF originale utilizzato",
+      "skipped": "Ottimizzazione ignorata",
+      "note": "Nota di ottimizzazione"
+    },
+    "errors": {
+      "pdf": "Non è stato possibile elaborare il PDF",
+      "extraction": "Estrazione non riuscita",
+      "import": "Importazione automatica non riuscita"
     }
   },
   "Upload": {
@@ -262,7 +307,6 @@
     "multipartRequired": "Carica il PDF come modulo multipart.",
     "pdfOpenFailed": "Non è stato possibile aprire il PDF sorgente.",
     "importValidationFailed": "I dati tecnici contengono problemi strutturali da correggere prima del salvataggio.",
-    "invalidDraftField": "{path}: valore o opzione non valida.",
     "importValidation": {
       "NO_CASES": "{path}: aggiungi almeno un caso tecnico.",
       "CASE_TITLE_REQUIRED": "{path}: inserisci un titolo significativo per il caso.",

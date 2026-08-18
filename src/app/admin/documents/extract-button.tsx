@@ -23,7 +23,6 @@ export function ExtractButton({
   async function handleExtract() {
     setIsProcessing(true);
     setError(null);
-    router.refresh();
 
     try {
       const response = await fetch(

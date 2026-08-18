@@ -28,17 +28,62 @@
     "uploadTitle": "Upload a technical PDF",
     "uploadDescription": "Add one private source document. Extraction automatically imports structurally valid technical knowledge; human review remains available afterward.",
     "title": "Documents",
+    "dashboardDescription": "Monitor extraction and import progress, inspect usage, and open the resulting knowledge.",
     "empty": "No documents uploaded yet.",
+    "emptyFilter": "No documents match this filter.",
     "openKnowledge": "Open knowledge",
+    "openSourcePdf": "Open source PDF",
     "editKnowledge": "Review or edit",
     "reviewFailedImport": "Review import issues",
     "failedHelp": "Extraction or automatic import failed. You can retry or review the extracted data when available.",
+    "manuallyReviewed": "Manually reviewed",
+    "latestExtraction": "Latest extraction",
+    "technicalCases": "{count, plural, one {# technical case} other {# technical cases}}",
+    "technicalDetails": "Technical details",
+    "summary": {
+      "total": "Total documents",
+      "processing": "Processing",
+      "imported": "Imported",
+      "failed": "Failed"
+    },
+    "filters": {
+      "label": "Filter documents",
+      "all": "All",
+      "uploaded": "Uploaded",
+      "processing": "Processing",
+      "imported": "Imported",
+      "failed": "Failed",
+      "reviewed": "Manually reviewed"
+    },
     "status": {
-      "PENDING": "Ready to extract",
-      "PROCESSING": "Processing",
-      "REVIEW_REQUIRED": "Extraction completed · Optional review",
-      "COMPLETED": "Completed",
-      "FAILED": "Extraction failed"
+      "UPLOADED": "Uploaded",
+      "EXTRACTING": "Extracting",
+      "IMPORTING": "Importing",
+      "IMPORTED": "Imported",
+      "FAILED": "Failed"
+    },
+    "fields": {
+      "uploadedAt": "Uploaded",
+      "bulletinReference": "Bulletin reference",
+      "sourceLanguage": "Source language",
+      "originalSize": "Original size",
+      "processingSize": "Processing size",
+      "optimization": "Optimization",
+      "model": "Model",
+      "inputTokens": "Input tokens",
+      "outputTokens": "Output tokens",
+      "totalTokens": "Total tokens"
+    },
+    "optimization": {
+      "optimized": "Optimized copy used",
+      "original": "Original PDF used",
+      "skipped": "Optimization skipped",
+      "note": "Optimization note"
+    },
+    "errors": {
+      "pdf": "The PDF could not be processed",
+      "extraction": "Extraction failed",
+      "import": "Automatic import failed"
     }
   },
   "Upload": {
@@ -262,7 +307,6 @@
     "multipartRequired": "Upload the PDF as multipart form data.",
     "pdfOpenFailed": "The source PDF could not be opened.",
     "importValidationFailed": "The technical data contains structural issues that must be corrected before it can be saved.",
-    "invalidDraftField": "{path}: invalid value or enum option.",
     "importValidation": {
       "NO_CASES": "{path}: add at least one technical case.",
       "CASE_TITLE_REQUIRED": "{path}: enter a meaningful case title.",

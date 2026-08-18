@@ -33,3 +33,14 @@ test("English and Italian catalogs include the knowledge browser UI", () => {
   assert.ok(english.CaseDetail.fields.relatedApplicability);
   assert.ok(italian.CaseDetail.fields.relatedApplicability);
 });
+
+test("English and Italian catalogs include the ingestion dashboard UI", () => {
+  assert.equal(english.Documents.status.UPLOADED, "Uploaded");
+  assert.equal(english.Documents.status.IMPORTING, "Importing");
+  assert.equal(italian.Documents.status.UPLOADED, "Caricato");
+  assert.equal(italian.Documents.status.IMPORTING, "Importazione in corso");
+  assert.equal(english.Documents.openSourcePdf, "Open source PDF");
+  assert.equal(italian.Documents.openSourcePdf, "Apri PDF sorgente");
+  assert.ok(english.Documents.fields.totalTokens);
+  assert.ok(italian.Documents.fields.totalTokens);
+});

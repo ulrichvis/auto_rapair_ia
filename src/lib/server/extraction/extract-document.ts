@@ -7,7 +7,7 @@ import { downloadPrivatePdf } from "@/lib/server/supabase-storage";
 import { OpenAIExtractionProvider } from "./openai-extraction-provider";
 import { optimizePdfForExtraction } from "./pdf-optimizer";
 import { prismaExtractionRepository } from "./prisma-extraction-repository";
-import { importExtractedKnowledge } from "../import/import-reviewed-knowledge";
+import { importExtractedKnowledge } from "../import/import-knowledge";
 
 export function extractDocument(documentId: string) {
   const service = createExtractionService({

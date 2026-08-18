@@ -69,10 +69,10 @@ Create a Supabase Storage bucket before using the upload page:
 
 - Use the same name configured in `SUPABASE_PDF_BUCKET` (the example uses `technical-pdfs`).
 - Keep **Public bucket** disabled.
-- Set the bucket file-size limit to at least 4 MiB.
+- Set the bucket file-size limit to at least 15 MiB.
 - Allow `application/pdf` if the bucket uses an allowed MIME-type list.
 
-The upload page is available at [http://localhost:3000/admin/documents](http://localhost:3000/admin/documents). PDF validation, hashing, duplicate detection, private Storage upload, and database writes run on the server. This V1 accepts files up to 4 MiB so uploads remain within Vercel's server-function request limit.
+The upload page is available at [http://localhost:3000/admin/documents](http://localhost:3000/admin/documents). PDF validation, hashing, duplicate detection, private Storage upload, and database writes run on the server. This V1 accepts files up to 15 MiB. Confirm that the deployment platform's request-body limit supports this size.
 
 ## PDF extraction
 
@@ -105,6 +105,7 @@ When deploying to Vercel, add all variables from `.env.example` to the project's
 ```bash
 pnpm db:validate
 pnpm format:check
+pnpm typecheck
 pnpm lint
 pnpm test
 pnpm build

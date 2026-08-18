@@ -45,7 +45,7 @@ export function assertAutomaticallyImportableRun(
     importedAt: Date | null;
   } | null,
   expectedDocumentId: string,
-  latestSuccessfulRunId: string | null,
+  latestExtractedRunId: string | null,
 ) {
   if (
     !run ||
@@ -56,7 +56,7 @@ export function assertAutomaticallyImportableRun(
   }
   if (run.importedAt) throw new ImportStateError("ALREADY_IMPORTED");
   if (run.status !== "IMPORTING") throw new ImportStateError("NOT_FOUND");
-  if (latestSuccessfulRunId !== run.id) throw new ImportStateError("STALE");
+  if (latestExtractedRunId !== run.id) throw new ImportStateError("STALE");
 }
 
 export async function runAtomicImport<TTransaction, TResult>(

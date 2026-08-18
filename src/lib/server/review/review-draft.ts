@@ -6,7 +6,7 @@ import {
   KnowledgeImportConflictError,
   KnowledgeImportNotFoundError,
   replaceKnowledgeFromReview,
-} from "@/lib/server/import/import-reviewed-knowledge";
+} from "@/lib/server/import/import-knowledge";
 import { prisma } from "@/lib/server/prisma";
 
 export class ReviewDraftNotFoundError extends Error {
@@ -66,22 +66,23 @@ export async function getDocumentReview(documentId: string) {
     );
   }
 
+  const draft = validateAutomotiveExtractionDraft(
+    run.reviewedOutput ?? run.rawOutput,
+  );
+
   return {
     documentId: document.id,
     originalFilename: document.originalFilename,
     maxSourcePage:
       document.pageCount ??
-      validateAutomotiveExtractionDraft(run.reviewedOutput ?? run.rawOutput)
-        .document.claimedPageCount ??
+      draft.document.claimedPageCount ??
       document.claimedPageCount,
     runId: run.id,
     completedAt: run.completedAt?.toISOString() ?? null,
     importedAt: run.importedAt?.toISOString() ?? null,
     reviewedAt: run.reviewedAt?.toISOString() ?? null,
     importedCases: run.importedCases,
-    draft: validateAutomotiveExtractionDraft(
-      run.reviewedOutput ?? run.rawOutput,
-    ),
+    draft,
   };
 }
 
