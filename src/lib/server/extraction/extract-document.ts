@@ -1,6 +1,9 @@
 import "server-only";
 
-import { createExtractionService } from "@/lib/extraction/extraction-service";
+import {
+  createExtractionService,
+  type ClaimedExtractionRun,
+} from "@/lib/extraction/extraction-service";
 import { preparePdfForExtraction } from "@/lib/extraction/pdf-processing";
 import { downloadPrivatePdf } from "@/lib/server/supabase-storage";
 
@@ -9,21 +12,25 @@ import { optimizePdfForExtraction } from "./pdf-optimizer";
 import { prismaExtractionRepository } from "./prisma-extraction-repository";
 import { importExtractedKnowledge } from "../import/import-knowledge";
 
-export function extractDocument(documentId: string) {
-  const service = createExtractionService({
-    repository: prismaExtractionRepository,
-    provider: new OpenAIExtractionProvider(),
-    loadPdf: downloadPrivatePdf,
-    importKnowledge: importExtractedKnowledge,
-    preparePdf(pdf) {
-      return preparePdfForExtraction(pdf, {
-        optimizer: optimizePdfForExtraction,
-        onWarning(warning) {
-          console.warn(warning);
-        },
-      });
-    },
-  });
+const extractionService = createExtractionService({
+  repository: prismaExtractionRepository,
+  provider: new OpenAIExtractionProvider(),
+  loadPdf: downloadPrivatePdf,
+  importKnowledge: importExtractedKnowledge,
+  preparePdf(pdf) {
+    return preparePdfForExtraction(pdf, {
+      optimizer: optimizePdfForExtraction,
+      onWarning(warning) {
+        console.warn(warning);
+      },
+    });
+  },
+});
 
-  return service.extractDocument(documentId);
+export function extractDocument(documentId: string) {
+  return extractionService.extractDocument(documentId);
+}
+
+export function processClaimedDocument(claim: ClaimedExtractionRun) {
+  return extractionService.processClaimedDocument(claim);
 }

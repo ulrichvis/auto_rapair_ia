@@ -12,7 +12,7 @@ export const documentDashboardFilters = [
 export type DocumentDashboardFilter = (typeof documentDashboardFilters)[number];
 
 export type DocumentDashboardState =
-  "UPLOADED" | "EXTRACTING" | "IMPORTING" | "IMPORTED" | "FAILED";
+  "UPLOADED" | "QUEUED" | "EXTRACTING" | "IMPORTING" | "IMPORTED" | "FAILED";
 
 export type DocumentDashboardAction =
   | "extract"
@@ -117,23 +117,16 @@ export function resolveDocumentDashboardState(
 ): DocumentDashboardState {
   const latestRun = document.ingestionRuns[0];
 
-  if (
-    document.processingStatus === "FAILED" ||
-    latestRun?.status === "FAILED"
-  ) {
-    return "FAILED";
-  }
+  if (document.processingStatus === "QUEUED") return "QUEUED";
 
   if (document.processingStatus === "PROCESSING") {
     return latestRun?.status === "IMPORTING" ? "IMPORTING" : "EXTRACTING";
   }
 
-  if (
-    document.processingStatus === "COMPLETED" ||
-    latestRun?.status === "IMPORTED"
-  ) {
-    return "IMPORTED";
-  }
+  if (document.processingStatus === "COMPLETED") return "IMPORTED";
+  if (document.processingStatus === "FAILED") return "FAILED";
+  if (latestRun?.status === "IMPORTED") return "IMPORTED";
+  if (latestRun?.status === "FAILED") return "FAILED";
 
   return "UPLOADED";
 }
@@ -153,7 +146,8 @@ function actionsForDocument(
 ): DocumentDashboardAction[] {
   const latestRun = document.ingestionRuns[0];
 
-  if (state === "EXTRACTING" || state === "IMPORTING") return [];
+  if (state === "QUEUED" || state === "EXTRACTING" || state === "IMPORTING")
+    return [];
   if (state === "FAILED") {
     return [
       "retry",
@@ -207,7 +201,9 @@ export function filterDocumentDashboardItems(
   if (filter === "processing") {
     return documents.filter(
       (document) =>
-        document.state === "EXTRACTING" || document.state === "IMPORTING",
+        document.state === "QUEUED" ||
+        document.state === "EXTRACTING" ||
+        document.state === "IMPORTING",
     );
   }
 
@@ -227,7 +223,9 @@ export function summarizeDocumentDashboard(documents: DocumentDashboardItem[]) {
     total: documents.length,
     processing: documents.filter(
       (document) =>
-        document.state === "EXTRACTING" || document.state === "IMPORTING",
+        document.state === "QUEUED" ||
+        document.state === "EXTRACTING" ||
+        document.state === "IMPORTING",
     ).length,
     imported: documents.filter((document) => document.state === "IMPORTED")
       .length,

@@ -63,6 +63,18 @@ test("an uploaded document offers extraction", () => {
   assert.deepEqual(document.actions, ["extract"]);
 });
 
+test("a queued document is distinct from active processing and has no action", () => {
+  const document = createDocumentDashboardItem(
+    documentFixture({
+      processingStatus: "QUEUED",
+      ingestionRuns: [runFixture({ status: "FAILED" })],
+    }),
+  );
+
+  assert.equal(document.state, "QUEUED");
+  assert.deepEqual(document.actions, []);
+});
+
 test("processing documents distinguish extraction from import and offer no duplicate action", () => {
   const extracting = createDocumentDashboardItem(
     documentFixture({

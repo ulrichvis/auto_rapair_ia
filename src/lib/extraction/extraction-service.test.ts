@@ -23,12 +23,14 @@ class MemoryRepository implements ExtractionRepository {
   failedMessage: string | null = null;
   processingMetadata: PdfProcessingMetadata | null = null;
   importCalls: Array<{ documentId: string; runId: string }> = [];
+  startRunCalls = 0;
 
   async findDocument(documentId: string) {
     return documentId === this.document.id ? this.document : null;
   }
 
   async startRun() {
+    this.startRunCalls += 1;
     this.document.processingStatus = "PROCESSING";
     return { runId: "run-1" };
   }
@@ -103,6 +105,29 @@ test("persists a successful structured draft and usage on the ingestion run", as
     processingWasOptimized: false,
     processingWarning: null,
   });
+});
+
+test("processes an atomically claimed queue run without creating a second run", async () => {
+  const repository = new MemoryRepository();
+  repository.document.processingStatus = "PROCESSING";
+  const service = createExtractionService({
+    repository,
+    provider: successfulProvider(),
+    async loadPdf() {
+      return Buffer.from("%PDF-test");
+    },
+    importKnowledge: repository.importKnowledge.bind(repository),
+  });
+
+  await service.processClaimedDocument({
+    document: repository.document,
+    runId: "claimed-run",
+  });
+
+  assert.equal(repository.startRunCalls, 0);
+  assert.deepEqual(repository.importCalls, [
+    { documentId: "document-1", runId: "claimed-run" },
+  ]);
 });
 
 test("sends an optimized processing copy to extraction and cleans it up", async () => {

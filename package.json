@@ -9,7 +9,7 @@
     "typecheck": "tsc --noEmit",
     "lint": "eslint .",
     "lint:fix": "eslint . --fix",
-    "test": "tsc -p tsconfig.test.json && node --test .test-dist/i18n/locale.test.js .test-dist/i18n/messages.test.js .test-dist/lib/documents/document-dashboard.test.js .test-dist/lib/documents/pdf-validation.test.js .test-dist/lib/extraction/automotive-draft-schema.test.js .test-dist/lib/extraction/extraction-instructions.test.js .test-dist/lib/extraction/extraction-service.test.js .test-dist/lib/extraction/pdf-processing.test.js .test-dist/lib/import/knowledge-import-plan.test.js .test-dist/lib/import/import-transaction.test.js .test-dist/lib/knowledge/case-browser.test.js .test-dist/lib/review/review-field-path.test.js",
+    "test": "tsc -p tsconfig.test.json && node --test .test-dist/i18n/locale.test.js .test-dist/i18n/messages.test.js .test-dist/lib/documents/document-dashboard.test.js .test-dist/lib/documents/pdf-upload-batch.test.js .test-dist/lib/documents/pdf-validation.test.js .test-dist/lib/extraction/automotive-draft-schema.test.js .test-dist/lib/extraction/extraction-instructions.test.js .test-dist/lib/extraction/extraction-service.test.js .test-dist/lib/extraction/pdf-processing.test.js .test-dist/lib/extraction/queue-policy.test.js .test-dist/lib/extraction/queue-runner.test.js .test-dist/lib/import/knowledge-import-plan.test.js .test-dist/lib/import/import-transaction.test.js .test-dist/lib/knowledge/case-browser.test.js .test-dist/lib/review/review-field-path.test.js",
     "format": "prettier \"src/**/*.{ts,tsx,json,css}\" \"*.{ts,mts,js,cjs,json,md}\" --write",
     "format:check": "prettier \"src/**/*.{ts,tsx,json,css}\" \"*.{ts,mts,js,cjs,json,md}\" --check",
     "db:generate": "prisma generate",

@@ -35,6 +35,7 @@ The project currently contains the application and PostgreSQL/Prisma foundations
    - Set `SUPABASE_PDF_BUCKET` to the name of the private Storage bucket used for source PDFs.
    - Set `OPENAI_API_KEY` to a server-side OpenAI project API key.
    - Set `OPENAI_EXTRACTION_MODEL` to the Responses API model used for extraction. The default example is `gpt-5.6-luna`.
+   - Set `INGESTION_CONCURRENCY` to the maximum number of simultaneous extraction/import jobs. The recommended V1 value is `2`.
 
    Replace the password placeholder in each connection string with the project's database password. Keep both values server-side and never commit `.env.local`.
 
@@ -72,11 +73,13 @@ Create a Supabase Storage bucket before using the upload page:
 - Set the bucket file-size limit to at least 15 MiB.
 - Allow `application/pdf` if the bucket uses an allowed MIME-type list.
 
-The upload page is available at [http://localhost:3000/admin/documents](http://localhost:3000/admin/documents). PDF validation, hashing, duplicate detection, private Storage upload, and database writes run on the server. This V1 accepts files up to 15 MiB. Confirm that the deployment platform's request-body limit supports this size.
+The upload page is available at [http://localhost:3000/admin/documents](http://localhost:3000/admin/documents). It accepts multiple PDFs and uploads each file independently, so an invalid, duplicate, or failed file does not cancel the rest of the selection. PDF validation, hashing, duplicate detection, private Storage upload, and database writes run on the server. This V1 accepts files up to 15 MiB each. Confirm that the deployment platform's request-body limit supports this per-file size.
 
 ## PDF extraction
 
-From the document list, select **Extract** for one uploaded PDF. The server:
+Newly uploaded PDFs enter a durable PostgreSQL-backed queue. The Admin dashboard drains that queue through bounded server requests, using `INGESTION_CONCURRENCY` to control simultaneous OpenAI calls. Closing the dashboard does not lose pending documents; reopening it resumes draining. This request-driven V1 avoids an unreliable in-memory worker on Vercel while keeping PostgreSQL as the queue source of truth.
+
+For each claimed PDF, the server:
 
 1. Creates a `PROCESSING` `IngestionRun` and marks the source document as processing.
 2. Retrieves the PDF from the private Supabase bucket without creating a public URL.
@@ -86,7 +89,9 @@ From the document list, select **Extract** for one uploaded PDF. The server:
 6. Validates references, ordering, source pages, and measurement constraints before writing relational knowledge in one transaction.
 7. Marks automatically imported cases `IN_REVIEW`, the run `IMPORTED`, and the document `COMPLETED`.
 
-Failures mark both the run and document as failed and can be retried from the document list. A failed relational import creates no partial domain rows, while the extracted `rawOutput` remains available for diagnosis and optional correction. The review page stores corrected data in `reviewedOutput`, replaces that run's relational cases transactionally, and marks them as human-reviewed without overwriting `rawOutput`. The extraction route declares a five-minute maximum duration; confirm the deployed Vercel plan supports enough execution time for representative PDFs.
+Queue claims are serialized in PostgreSQL and conditionally change one document from `QUEUED` to `PROCESSING` before creating its `IngestionRun`. This prevents two dashboard workers from extracting the same document and enforces the configured global concurrency limit. Each drain request handles one PDF and has a five-minute maximum duration; confirm the deployed Vercel plan supports enough execution time for representative PDFs.
+
+Failures mark both the run and document as failed while the queue continues with later documents. Retry only moves that failed document back to `QUEUED`; prior `IngestionRun` history remains intact. A failed relational import creates no partial domain rows, while the extracted `rawOutput` remains available for diagnosis and optional correction. The review page stores corrected data in `reviewedOutput`, replaces that run's relational cases transactionally, and marks them as human-reviewed without overwriting `rawOutput`.
 
 ## Database foundation
 

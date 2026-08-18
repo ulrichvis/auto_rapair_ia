@@ -1,9 +1,11 @@
-import { ExtractionConflictError } from "@/lib/extraction/extraction-service";
-import { extractDocument } from "@/lib/server/extraction/extract-document";
+import {
+  IngestionQueueConflictError,
+  IngestionQueueNotFoundError,
+  queueDocumentForExtraction,
+} from "@/lib/server/extraction/prisma-ingestion-queue";
 import { getTranslations } from "next-intl/server";
 
 export const runtime = "nodejs";
-export const maxDuration = 300;
 
 export async function POST(
   _request: Request,
@@ -18,27 +20,24 @@ export async function POST(
   }
 
   try {
-    const result = await extractDocument(documentId);
-    return Response.json(result);
+    const result = await queueDocumentForExtraction(documentId);
+    return Response.json(result, { status: 202 });
   } catch (error) {
-    if (error instanceof ExtractionConflictError) {
+    if (error instanceof IngestionQueueConflictError) {
       return Response.json(
         { error: extractionT("alreadyProcessing") },
         { status: 409 },
       );
     }
 
-    if (
-      error instanceof Error &&
-      error.message === "Source document not found."
-    ) {
+    if (error instanceof IngestionQueueNotFoundError) {
       return Response.json(
         { error: extractionT("documentNotFound") },
         { status: 404 },
       );
     }
 
-    console.error("PDF extraction failed", {
+    console.error("PDF queueing failed", {
       documentId,
       message: error instanceof Error ? error.message : "Unknown error",
     });

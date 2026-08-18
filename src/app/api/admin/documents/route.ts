@@ -52,7 +52,7 @@ export async function POST(request: Request) {
       }[error.code];
 
       return Response.json(
-        { error: translatedMessage },
+        { error: translatedMessage, code: error.code },
         { status: error.status },
       );
     }

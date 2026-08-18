@@ -13,10 +13,12 @@ import {
   summarizeDocumentDashboard,
   type DocumentDashboardState,
 } from "@/lib/documents/document-dashboard";
+import { getIngestionConcurrency } from "@/lib/server/extraction/ingestion-queue";
 import { prisma } from "@/lib/server/prisma";
 
 import { ExtractButton } from "./extract-button";
 import { PdfUploadForm } from "./pdf-upload-form";
+import { QueueProcessor } from "./queue-processor";
 
 export async function generateMetadata(): Promise<Metadata> {
   const t = await getTranslations("Metadata");
@@ -27,6 +29,7 @@ export const dynamic = "force-dynamic";
 
 const statusClasses: Record<DocumentDashboardState, string> = {
   UPLOADED: "border-slate-300 bg-slate-100 text-slate-800",
+  QUEUED: "border-blue-300 bg-blue-50 text-blue-900",
   EXTRACTING: "border-amber-300 bg-amber-50 text-amber-900",
   IMPORTING: "border-indigo-300 bg-indigo-50 text-indigo-900",
   IMPORTED: "border-emerald-300 bg-emerald-50 text-emerald-900",
@@ -56,6 +59,13 @@ export default async function AdminDocumentsPage({
     activeFilter,
   );
   const summary = summarizeDocumentDashboard(documents);
+  const hasQueuedDocuments = documents.some(
+    (document) => document.state === "QUEUED",
+  );
+  const hasProcessingDocuments = documents.some(
+    (document) =>
+      document.state === "EXTRACTING" || document.state === "IMPORTING",
+  );
   const dateFormatter = new Intl.DateTimeFormat(locale, {
     dateStyle: "medium",
     timeStyle: "short",
@@ -131,6 +141,12 @@ export default async function AdminDocumentsPage({
               );
             })}
           </nav>
+
+          <QueueProcessor
+            concurrency={getIngestionConcurrency()}
+            hasQueuedDocuments={hasQueuedDocuments}
+            hasProcessingDocuments={hasProcessingDocuments}
+          />
 
           {documents.length === 0 ? (
             <div className="rounded-2xl border border-slate-200 bg-white p-8 text-sm text-slate-600 shadow-sm">

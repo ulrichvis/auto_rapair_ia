@@ -25,8 +25,8 @@
   },
   "Documents": {
     "eyebrow": "Admin",
-    "uploadTitle": "Upload a technical PDF",
-    "uploadDescription": "Add one private source document. Extraction automatically imports structurally valid technical knowledge; human review remains available afterward.",
+    "uploadTitle": "Upload technical PDFs",
+    "uploadDescription": "Add private source documents. New PDFs are queued and progressively turned into structured knowledge; human review remains available afterward.",
     "title": "Documents",
     "dashboardDescription": "Monitor extraction and import progress, inspect usage, and open the resulting knowledge.",
     "empty": "No documents uploaded yet.",
@@ -57,6 +57,7 @@
     },
     "status": {
       "UPLOADED": "Uploaded",
+      "QUEUED": "Queued",
       "EXTRACTING": "Extracting",
       "IMPORTING": "Importing",
       "IMPORTED": "Imported",
@@ -87,30 +88,47 @@
     }
   },
   "Upload": {
-    "documentLabel": "PDF document",
-    "help": "One PDF, up to 15 MiB. Files are stored privately.",
-    "upload": "Upload PDF",
-    "uploading": "Uploading…",
-    "selectOne": "Select one PDF to upload.",
+    "documentLabel": "Select PDFs",
+    "help": "Select one or more PDFs, up to 15 MiB per file. Files are uploaded independently and stored privately.",
+    "uploadFiles": "Upload files",
+    "uploading": "Uploading files…",
+    "selectOne": "Select at least one PDF to upload.",
+    "noValidFiles": "Select at least one valid PDF.",
+    "filesSelected": "{count, plural, one {# file selected} other {# files selected}}",
+    "remove": "Remove",
+    "progress": "{uploaded} of {total} uploaded",
+    "uploadComplete": "Upload complete",
+    "completeSummary": "{uploaded} uploaded · {duplicate} duplicate · {invalid} invalid · {failed} failed",
+    "batchStatus": {
+      "ready": "Selected",
+      "invalid": "Invalid file",
+      "uploading": "Uploading",
+      "uploaded": "Uploaded",
+      "duplicate": "Duplicate",
+      "failed": "Failed"
+    },
     "selectPdf": "Select a PDF file.",
     "tooLarge": "The PDF must be 15 MiB or smaller.",
     "failed": "The PDF could not be uploaded.",
     "failedRetry": "The PDF could not be uploaded. Please try again.",
     "invalidFilename": "The PDF filename is invalid or too long.",
     "empty": "The selected PDF is empty.",
-    "invalidPdf": "The selected file is not a valid PDF.",
-    "duplicate": "This PDF already exists as {filename}. No duplicate was created.",
-    "success": "{filename} was uploaded successfully."
+    "invalidPdf": "The selected file is not a valid PDF."
   },
   "Extraction": {
     "extract": "Extract",
     "retry": "Retry extraction",
     "reextract": "Re-extract",
-    "processing": "Processing…",
+    "processing": "Queueing…",
     "failed": "Extraction failed.",
     "failedRetry": "Extraction or automatic import failed. You can retry this document.",
     "alreadyProcessing": "This document is already being extracted.",
     "documentNotFound": "Source document not found."
+  },
+  "Queue": {
+    "processing": "Processing the ingestion queue…",
+    "processed": "{count, plural, one {# queued document processed} other {# queued documents processed}}",
+    "failed": "The ingestion queue could not be processed. Reload the page to try again."
   },
   "Review": {
     "eyebrow": "Knowledge review",

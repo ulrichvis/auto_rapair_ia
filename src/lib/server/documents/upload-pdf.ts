@@ -100,7 +100,7 @@ export async function uploadPdfDocument(file: File): Promise<PdfUploadResult> {
         originalFilename,
         storagePath,
         sha256,
-        processingStatus: "PENDING",
+        processingStatus: "QUEUED",
       },
       select: { id: true },
     });

@@ -15,6 +15,11 @@ export type ExtractionDocument = {
   processingStatus: string;
 };
 
+export type ClaimedExtractionRun = {
+  document: ExtractionDocument;
+  runId: string;
+};
+
 export type SuccessfulExtraction = {
   draft: AutomotiveExtractionDraft;
   model: string;
@@ -84,6 +89,56 @@ export function createExtractionService({
   preparePdf,
   importKnowledge,
 }: ExtractionServiceDependencies) {
+  async function processClaimedDocument({
+    document,
+    runId,
+  }: ClaimedExtractionRun) {
+    try {
+      const originalPdf = await loadPdf(document.storagePath);
+      const prepared = preparePdf
+        ? await preparePdf(originalPdf)
+        : {
+            pdf: originalPdf,
+            metadata: {
+              originalFileSizeBytes: originalPdf.length,
+              processingFileSizeBytes: originalPdf.length,
+              processingWasOptimized: false,
+              processingWarning: null,
+            },
+            async cleanup() {},
+          };
+
+      try {
+        await repository.recordProcessing(runId, prepared.metadata);
+        const providerResult = await provider.extractPdf({
+          filename: document.originalFilename,
+          pdf: prepared.pdf,
+        });
+        const result = toSuccessfulExtraction(providerResult);
+
+        await repository.completeRun(document.id, runId, result);
+        const imported = await importKnowledge(document.id, runId);
+
+        return {
+          runId,
+          status: "IMPORTED" as const,
+          cases: imported.cases,
+        };
+      } finally {
+        await prepared.cleanup().catch((cleanupError) => {
+          const message =
+            cleanupError instanceof Error
+              ? cleanupError.message
+              : "unknown cleanup failure";
+          console.warn(`Temporary PDF cleanup failed: ${message}`);
+        });
+      }
+    } catch (error) {
+      await repository.failRun(document.id, runId, getSafeErrorMessage(error));
+      throw error;
+    }
+  }
+
   return {
     async extractDocument(documentId: string) {
       const document = await repository.findDocument(documentId);
@@ -100,54 +155,8 @@ export function createExtractionService({
 
       const { runId } = await repository.startRun(document.id);
 
-      try {
-        const originalPdf = await loadPdf(document.storagePath);
-        const prepared = preparePdf
-          ? await preparePdf(originalPdf)
-          : {
-              pdf: originalPdf,
-              metadata: {
-                originalFileSizeBytes: originalPdf.length,
-                processingFileSizeBytes: originalPdf.length,
-                processingWasOptimized: false,
-                processingWarning: null,
-              },
-              async cleanup() {},
-            };
-
-        try {
-          await repository.recordProcessing(runId, prepared.metadata);
-          const providerResult = await provider.extractPdf({
-            filename: document.originalFilename,
-            pdf: prepared.pdf,
-          });
-          const result = toSuccessfulExtraction(providerResult);
-
-          await repository.completeRun(document.id, runId, result);
-          const imported = await importKnowledge(document.id, runId);
-
-          return {
-            runId,
-            status: "IMPORTED" as const,
-            cases: imported.cases,
-          };
-        } finally {
-          await prepared.cleanup().catch((cleanupError) => {
-            const message =
-              cleanupError instanceof Error
-                ? cleanupError.message
-                : "unknown cleanup failure";
-            console.warn(`Temporary PDF cleanup failed: ${message}`);
-          });
-        }
-      } catch (error) {
-        await repository.failRun(
-          document.id,
-          runId,
-          getSafeErrorMessage(error),
-        );
-        throw error;
-      }
+      return processClaimedDocument({ document, runId });
     },
+    processClaimedDocument,
   };
 }

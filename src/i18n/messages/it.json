@@ -25,8 +25,8 @@
   },
   "Documents": {
     "eyebrow": "Amministrazione",
-    "uploadTitle": "Carica un PDF tecnico",
-    "uploadDescription": "Aggiungi un documento sorgente privato. L'estrazione importa automaticamente la conoscenza tecnicamente valida; la verifica umana resta disponibile in seguito.",
+    "uploadTitle": "Carica PDF tecnici",
+    "uploadDescription": "Aggiungi documenti sorgente privati. I nuovi PDF vengono messi in coda e trasformati progressivamente in conoscenza strutturata; la verifica umana resta disponibile in seguito.",
     "title": "Documenti",
     "dashboardDescription": "Controlla l'estrazione e l'importazione, consulta l'utilizzo e apri la conoscenza generata.",
     "empty": "Nessun documento caricato.",
@@ -57,6 +57,7 @@
     },
     "status": {
       "UPLOADED": "Caricato",
+      "QUEUED": "In coda",
       "EXTRACTING": "Estrazione in corso",
       "IMPORTING": "Importazione in corso",
       "IMPORTED": "Importato",
@@ -87,30 +88,47 @@
     }
   },
   "Upload": {
-    "documentLabel": "Documento PDF",
-    "help": "Un PDF, massimo 15 MiB. I file sono archiviati in modo privato.",
-    "upload": "Carica PDF",
-    "uploading": "Caricamento…",
-    "selectOne": "Seleziona un PDF da caricare.",
+    "documentLabel": "Seleziona PDF",
+    "help": "Seleziona uno o più PDF, massimo 15 MiB per file. I file vengono caricati separatamente e archiviati in modo privato.",
+    "uploadFiles": "Carica file",
+    "uploading": "Caricamento file…",
+    "selectOne": "Seleziona almeno un PDF da caricare.",
+    "noValidFiles": "Seleziona almeno un PDF valido.",
+    "filesSelected": "{count, plural, one {# file selezionato} other {# file selezionati}}",
+    "remove": "Rimuovi",
+    "progress": "{uploaded} di {total} caricati",
+    "uploadComplete": "Caricamento completato",
+    "completeSummary": "{uploaded} caricati · {duplicate} duplicati · {invalid} non validi · {failed} errori",
+    "batchStatus": {
+      "ready": "Selezionato",
+      "invalid": "File non valido",
+      "uploading": "Caricamento",
+      "uploaded": "Caricato",
+      "duplicate": "Duplicato",
+      "failed": "Errore"
+    },
     "selectPdf": "Seleziona un file PDF.",
     "tooLarge": "Il PDF deve avere una dimensione massima di 15 MiB.",
     "failed": "Non è stato possibile caricare il PDF.",
     "failedRetry": "Non è stato possibile caricare il PDF. Riprova.",
     "invalidFilename": "Il nome del PDF non è valido oppure è troppo lungo.",
     "empty": "Il PDF selezionato è vuoto.",
-    "invalidPdf": "Il file selezionato non è un PDF valido.",
-    "duplicate": "Questo PDF esiste già come {filename}. Non è stato creato alcun duplicato.",
-    "success": "{filename} è stato caricato correttamente."
+    "invalidPdf": "Il file selezionato non è un PDF valido."
   },
   "Extraction": {
     "extract": "Estrai",
     "retry": "Riprova estrazione",
     "reextract": "Estrai di nuovo",
-    "processing": "Elaborazione…",
+    "processing": "Inserimento in coda…",
     "failed": "Estrazione non riuscita.",
     "failedRetry": "L'estrazione o l'importazione automatica non è riuscita. Puoi riprovare con questo documento.",
     "alreadyProcessing": "Questo documento è già in fase di estrazione.",
     "documentNotFound": "Documento sorgente non trovato."
+  },
+  "Queue": {
+    "processing": "Elaborazione della coda di importazione…",
+    "processed": "{count, plural, one {# documento in coda elaborato} other {# documenti in coda elaborati}}",
+    "failed": "Non è stato possibile elaborare la coda di importazione. Ricarica la pagina per riprovare."
   },
   "Review": {
     "eyebrow": "Verifica conoscenza",
