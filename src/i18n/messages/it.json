@@ -6,12 +6,14 @@
     "reviewTitle": "Verifica estrazione | AutoRepair Knowledge",
     "caseTitle": "Caso tecnico | AutoRepair Knowledge",
     "caseEditTitle": "Modifica caso tecnico | AutoRepair Knowledge",
-    "casesTitle": "Consultazione conoscenza | AutoRepair Knowledge"
+    "casesTitle": "Consultazione conoscenza | AutoRepair Knowledge",
+    "retrievalTitle": "Test recupero conoscenza | AutoRepair Knowledge"
   },
   "Navigation": {
     "home": "Home",
     "documents": "Documenti",
     "cases": "Conoscenza",
+    "retrieval": "Recupero",
     "admin": "Amministrazione"
   },
   "LanguageSelector": {
@@ -402,6 +404,63 @@
       "IN_REVIEW": "In verifica",
       "VALIDATED": "Validato",
       "REJECTED": "Rifiutato"
+    }
+  },
+  "Retrieval": {
+    "eyebrow": "Strumento interno di amministrazione",
+    "title": "Recupero della conoscenza strutturata",
+    "description": "Verifica il recupero deterministico da PostgreSQL sulla conoscenza relazionale importata. Questo strumento non consulta i PDF e non chiama l'IA.",
+    "search": "Esegui ricerca",
+    "clear": "Cancella ricerca",
+    "readyTitle": "Pronto per la ricerca",
+    "readyDescription": "Inserisci almeno un criterio. Ad esempio: Volkswagen, EA189 e P0299.",
+    "results": "{count, plural, =0 {Nessuna corrispondenza} =1 {1 corrispondenza classificata} other {# corrispondenze classificate}}",
+    "empty": "Nessun caso tecnico strutturato corrisponde a questi criteri.",
+    "invalidYear": "Inserisci un anno del veicolo valido.",
+    "searchFailed": "Il recupero della conoscenza non è riuscito. Riprova.",
+    "score": "Punteggio {score}",
+    "reasons": "Motivi della corrispondenza",
+    "dtcs": "DTC corrispondenti",
+    "applicability": "Applicabilità corrispondente",
+    "matchedFacts": "Dati tecnici corrispondenti",
+    "humanReviewed": "Verificato da una persona",
+    "automaticImport": "Importato automaticamente",
+    "openCase": "Apri caso tecnico",
+    "none": "Nessuno",
+    "fields": {
+      "brand": "Marca",
+      "model": "Modello",
+      "engineCode": "Codice motore",
+      "engineFamily": "Famiglia motore",
+      "dtc": "DTC / codice guasto",
+      "symptom": "Sintomo",
+      "component": "Componente",
+      "system": "Sistema",
+      "year": "Anno del veicolo"
+    },
+    "placeholders": {
+      "brand": "Volkswagen",
+      "model": "Golf",
+      "engineCode": "CBAB",
+      "engineFamily": "EA189",
+      "dtc": "P0299",
+      "symptom": "Potenza ridotta",
+      "component": "N75",
+      "system": "Sovralimentazione",
+      "year": "2011"
+    },
+    "matchReasons": {
+      "exact_dtc": "DTC normalizzato esatto",
+      "manufacturer_dtc": "DTC del costruttore",
+      "exact_engine_code": "Codice motore esatto",
+      "engine_pattern": "Schema del codice motore",
+      "engine_family": "Famiglia motore",
+      "brand": "Marca",
+      "model": "Modello",
+      "symptom": "Sintomo",
+      "component": "Componente",
+      "system": "Sistema",
+      "year": "Anno applicabile"
     }
   },
   "CaseDetail": {

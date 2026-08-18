@@ -41,6 +41,16 @@ test("English and Italian catalogs include the knowledge browser UI", () => {
     italian.CaseEdit.save,
     "Salva modifiche e contrassegna come verificato",
   );
+  assert.equal(english.Navigation.retrieval, "Retrieval");
+  assert.equal(italian.Navigation.retrieval, "Recupero");
+  assert.equal(
+    english.Retrieval.matchReasons.exact_dtc,
+    "Exact normalized DTC",
+  );
+  assert.equal(
+    italian.Retrieval.matchReasons.exact_dtc,
+    "DTC normalizzato esatto",
+  );
 });
 
 test("English and Italian catalogs include the ingestion dashboard UI", () => {

@@ -6,12 +6,14 @@
     "reviewTitle": "Review extraction | AutoRepair Knowledge",
     "caseTitle": "Technical case | AutoRepair Knowledge",
     "caseEditTitle": "Edit technical case | AutoRepair Knowledge",
-    "casesTitle": "Knowledge browser | AutoRepair Knowledge"
+    "casesTitle": "Knowledge browser | AutoRepair Knowledge",
+    "retrievalTitle": "Knowledge retrieval test | AutoRepair Knowledge"
   },
   "Navigation": {
     "home": "Home",
     "documents": "Documents",
     "cases": "Knowledge",
+    "retrieval": "Retrieval",
     "admin": "Admin"
   },
   "LanguageSelector": {
@@ -402,6 +404,63 @@
       "IN_REVIEW": "In review",
       "VALIDATED": "Validated",
       "REJECTED": "Rejected"
+    }
+  },
+  "Retrieval": {
+    "eyebrow": "Internal admin tool",
+    "title": "Structured knowledge retrieval",
+    "description": "Test deterministic PostgreSQL retrieval over imported relational knowledge. This tool does not query PDFs or call AI.",
+    "search": "Run retrieval",
+    "clear": "Clear search",
+    "readyTitle": "Ready to search",
+    "readyDescription": "Enter at least one criterion. For example: Volkswagen, EA189, and P0299.",
+    "results": "{count, plural, =0 {No matches} =1 {1 ranked match} other {# ranked matches}}",
+    "empty": "No structured technical case matched these criteria.",
+    "invalidYear": "Enter a valid vehicle year.",
+    "searchFailed": "Knowledge retrieval failed. Please try again.",
+    "score": "Score {score}",
+    "reasons": "Match reasons",
+    "dtcs": "Matching DTCs",
+    "applicability": "Matching applicability",
+    "matchedFacts": "Matching technical facts",
+    "humanReviewed": "Human-reviewed",
+    "automaticImport": "Automatically imported",
+    "openCase": "Open technical case",
+    "none": "None",
+    "fields": {
+      "brand": "Brand",
+      "model": "Model",
+      "engineCode": "Engine code",
+      "engineFamily": "Engine family",
+      "dtc": "DTC / fault code",
+      "symptom": "Symptom",
+      "component": "Component",
+      "system": "System",
+      "year": "Vehicle year"
+    },
+    "placeholders": {
+      "brand": "Volkswagen",
+      "model": "Golf",
+      "engineCode": "CBAB",
+      "engineFamily": "EA189",
+      "dtc": "P0299",
+      "symptom": "Low power",
+      "component": "N75",
+      "system": "Turbocharging",
+      "year": "2011"
+    },
+    "matchReasons": {
+      "exact_dtc": "Exact normalized DTC",
+      "manufacturer_dtc": "Manufacturer DTC",
+      "exact_engine_code": "Exact engine code",
+      "engine_pattern": "Engine code pattern",
+      "engine_family": "Engine family",
+      "brand": "Brand",
+      "model": "Model",
+      "symptom": "Symptom",
+      "component": "Component",
+      "system": "System",
+      "year": "Applicable year"
     }
   },
   "CaseDetail": {

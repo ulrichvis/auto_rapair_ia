@@ -252,6 +252,7 @@ model CaseFaultCode {
 
   @@index([technicalCaseId])
   @@index([normalizedCode])
+  @@index([manufacturerCode])
   @@index([sourceDocumentId, sourcePage])
 }
 
@@ -293,6 +294,7 @@ model CaseComponent {
 
   @@index([technicalCaseId])
   @@index([normalizedName])
+  @@index([manufacturerIdentifier])
   @@index([sourceDocumentId, sourcePage])
 }
 
