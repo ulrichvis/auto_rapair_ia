@@ -35,6 +35,12 @@ export default async function RootLayout({ children }: LayoutProps<"/">) {
                 >
                   {t("documents")}
                 </Link>
+                <Link
+                  href="/admin/cases"
+                  className="text-sm font-medium text-slate-700 hover:text-blue-700"
+                >
+                  {t("cases")}
+                </Link>
               </div>
               <LanguageSelector />
             </nav>

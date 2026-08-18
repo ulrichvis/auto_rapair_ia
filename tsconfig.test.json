@@ -17,6 +17,7 @@
     "src/lib/documents/**/*.ts",
     "src/lib/extraction/**/*.ts",
     "src/lib/import/**/*.ts",
+    "src/lib/knowledge/**/*.ts",
     "src/lib/review/**/*.ts"
   ]
 }

@@ -24,3 +24,12 @@ test("English and Italian upload messages advertise the 15 MiB limit", () => {
   assert.match(italian.Upload.help, /15 MiB/);
   assert.match(italian.Upload.tooLarge, /15 MiB/);
 });
+
+test("English and Italian catalogs include the knowledge browser UI", () => {
+  assert.equal(english.Navigation.cases, "Knowledge");
+  assert.equal(italian.Navigation.cases, "Conoscenza");
+  assert.ok(english.CaseBrowser.filters.dtc);
+  assert.ok(italian.CaseBrowser.filters.dtc);
+  assert.ok(english.CaseDetail.fields.relatedApplicability);
+  assert.ok(italian.CaseDetail.fields.relatedApplicability);
+});
