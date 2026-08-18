@@ -22,6 +22,7 @@ class MemoryRepository implements ExtractionRepository {
   completedResult: SuccessfulExtraction | null = null;
   failedMessage: string | null = null;
   processingMetadata: PdfProcessingMetadata | null = null;
+  importCalls: Array<{ documentId: string; runId: string }> = [];
 
   async findDocument(documentId: string) {
     return documentId === this.document.id ? this.document : null;
@@ -38,7 +39,7 @@ class MemoryRepository implements ExtractionRepository {
     result: SuccessfulExtraction,
   ) {
     this.completedResult = result;
-    this.document.processingStatus = "REVIEW_REQUIRED";
+    this.document.processingStatus = "PROCESSING";
   }
 
   async recordProcessing(_runId: string, metadata: PdfProcessingMetadata) {
@@ -48,6 +49,12 @@ class MemoryRepository implements ExtractionRepository {
   async failRun(_documentId: string, _runId: string, message: string) {
     this.failedMessage = message;
     this.document.processingStatus = "FAILED";
+  }
+
+  async importKnowledge(documentId: string, runId: string) {
+    this.importCalls.push({ documentId, runId });
+    this.document.processingStatus = "COMPLETED";
+    return { cases: [{ id: "case-1", title: "Caso importato" }] };
   }
 }
 
@@ -76,12 +83,16 @@ test("persists a successful structured draft and usage on the ingestion run", as
     async loadPdf() {
       return Buffer.from("%PDF-test");
     },
+    importKnowledge: repository.importKnowledge.bind(repository),
   });
 
   const result = await service.extractDocument(repository.document.id);
 
-  assert.equal(result.status, "REVIEW_REQUIRED");
-  assert.equal(repository.document.processingStatus, "REVIEW_REQUIRED");
+  assert.equal(result.status, "IMPORTED");
+  assert.equal(repository.document.processingStatus, "COMPLETED");
+  assert.deepEqual(repository.importCalls, [
+    { documentId: "document-1", runId: "run-1" },
+  ]);
   assert.equal(repository.completedResult?.model, "gpt-5.6-luna");
   assert.equal(repository.completedResult?.totalTokens, 165);
   assert.deepEqual(repository.completedResult?.draft, createValidDraft());
@@ -126,6 +137,7 @@ test("sends an optimized processing copy to extraction and cleans it up", async 
         },
       };
     },
+    importKnowledge: repository.importKnowledge.bind(repository),
   });
 
   await service.extractDocument(repository.document.id);
@@ -148,6 +160,7 @@ test("persists failure state when the extraction API request fails", async () =>
     async loadPdf() {
       return Buffer.from("%PDF-test");
     },
+    importKnowledge: repository.importKnowledge.bind(repository),
   });
 
   await assert.rejects(
@@ -157,4 +170,26 @@ test("persists failure state when the extraction API request fails", async () =>
   assert.equal(repository.document.processingStatus, "FAILED");
   assert.equal(repository.failedMessage, "OpenAI request failed");
   assert.equal(repository.completedResult, null);
+});
+
+test("preserves the extracted draft and marks failure when automatic import fails", async () => {
+  const repository = new MemoryRepository();
+  const service = createExtractionService({
+    repository,
+    provider: successfulProvider(),
+    async loadPdf() {
+      return Buffer.from("%PDF-test");
+    },
+    async importKnowledge() {
+      throw new Error("Structural import validation failed");
+    },
+  });
+
+  await assert.rejects(
+    service.extractDocument(repository.document.id),
+    /Structural import validation failed/,
+  );
+  assert.deepEqual(repository.completedResult?.draft, createValidDraft());
+  assert.equal(repository.document.processingStatus, "FAILED");
+  assert.equal(repository.failedMessage, "Structural import validation failed");
 });

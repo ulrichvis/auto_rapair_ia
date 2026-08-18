@@ -924,7 +924,9 @@ export function ReviewEditor({
   initialDraft,
   completedAt,
   initialImportedAt,
+  initialReviewedAt,
   initialImportedCases,
+  initialValidationIssues,
 }: {
   documentId: string;
   runId: string;
@@ -932,17 +934,19 @@ export function ReviewEditor({
   initialDraft: AutomotiveExtractionDraft;
   completedAt: string | null;
   initialImportedAt: string | null;
+  initialReviewedAt: string | null;
   initialImportedCases: Array<{ id: string; title: string }>;
+  initialValidationIssues: ValidationIssue[];
 }) {
   const t = useTranslations("Review");
   const locale = useLocale();
   const [draft, setDraft] = useState(initialDraft);
   const [isSaving, setIsSaving] = useState(false);
-  const [isImporting, setIsImporting] = useState(false);
   const [importedAt, setImportedAt] = useState(initialImportedAt);
+  const [reviewedAt, setReviewedAt] = useState(initialReviewedAt);
   const [importedCases, setImportedCases] = useState(initialImportedCases);
   const [validationIssues, setValidationIssues] = useState<ValidationIssue[]>(
-    [],
+    initialValidationIssues,
   );
   const invalidPaths = new Set(validationIssues.map((issue) => issue.path));
   const [message, setMessage] = useState<{
@@ -950,7 +954,6 @@ export function ReviewEditor({
     text: string;
   } | null>(null);
   function mutate(update: (next: AutomotiveExtractionDraft) => void) {
-    if (importedAt) return;
     setDraft((current) => {
       const next = structuredClone(current);
       update(next);
@@ -974,8 +977,7 @@ export function ReviewEditor({
     target.scrollIntoView({ behavior: "smooth", block: "center" });
     window.setTimeout(() => target.focus({ preventScroll: true }), 350);
   }
-  async function saveDraft(showSuccess = true) {
-    if (importedAt) return false;
+  async function saveReview() {
     setIsSaving(true);
     setMessage(null);
     setValidationIssues([]);
@@ -991,68 +993,33 @@ export function ReviewEditor({
       const result = (await response.json()) as {
         error?: string;
         savedAt?: string;
+        importedAt?: string;
+        cases?: Array<{ id: string; title: string }>;
         draft?: AutomotiveExtractionDraft;
+        issues?: ValidationIssue[];
       };
-      if (!response.ok) throw new Error(result.error ?? t("saveFailed"));
+      if (!response.ok) {
+        setValidationIssues(result.issues ?? []);
+        throw new Error(result.error ?? t("saveFailed"));
+      }
       if (result.draft) setDraft(result.draft);
+      setImportedAt(result.importedAt ?? importedAt);
+      setReviewedAt(result.savedAt ?? new Date().toISOString());
+      setImportedCases(result.cases ?? []);
       const savedTime = new Intl.DateTimeFormat(locale, {
         timeStyle: "short",
       }).format(result.savedAt ? new Date(result.savedAt) : new Date());
-      if (showSuccess) {
-        setMessage({
-          tone: "success",
-          text: t("saved", { time: savedTime }),
-        });
-      }
-      return true;
+      setMessage({
+        tone: "success",
+        text: t("reviewSaved", { time: savedTime }),
+      });
     } catch (error) {
       setMessage({
         tone: "error",
         text: error instanceof Error ? error.message : t("saveFailed"),
       });
-      return false;
     } finally {
       setIsSaving(false);
-    }
-  }
-  async function validateAndImport() {
-    if (importedAt || !window.confirm(t("confirmImport"))) return;
-
-    setIsImporting(true);
-    setMessage(null);
-    setValidationIssues([]);
-    try {
-      if (!(await saveDraft(false))) return;
-
-      const response = await fetch(
-        `/api/admin/documents/${encodeURIComponent(documentId)}/import`,
-        {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ runId }),
-        },
-      );
-      const result = (await response.json()) as {
-        error?: string;
-        importedAt?: string;
-        cases?: Array<{ id: string; title: string }>;
-        issues?: ValidationIssue[];
-      };
-      if (!response.ok) {
-        setValidationIssues(result.issues ?? []);
-        throw new Error(result.error ?? t("importFailed"));
-      }
-
-      setImportedAt(result.importedAt ?? new Date().toISOString());
-      setImportedCases(result.cases ?? []);
-      setMessage({ tone: "success", text: t("importSuccess") });
-    } catch (error) {
-      setMessage({
-        tone: "error",
-        text: error instanceof Error ? error.message : t("importFailed"),
-      });
-    } finally {
-      setIsImporting(false);
     }
   }
   return (
@@ -1102,10 +1069,10 @@ export function ReviewEditor({
       {importedAt ? (
         <section className="mb-8 rounded-2xl border border-emerald-300 bg-emerald-50 p-5">
           <h2 className="font-semibold text-emerald-950">
-            {t("validatedTitle")}
+            {reviewedAt ? t("reviewedTitle") : t("automaticTitle")}
           </h2>
           <p className="mt-1 text-sm text-emerald-800">
-            {t("validatedDescription")}
+            {reviewedAt ? t("reviewedDescription") : t("automaticDescription")}
           </p>
           <ul className="mt-3 space-y-1">
             {importedCases.map((technicalCase) => (
@@ -1149,10 +1116,7 @@ export function ReviewEditor({
         </section>
       ) : null}
 
-      <fieldset
-        disabled={Boolean(importedAt)}
-        className="min-w-0 disabled:opacity-75"
-      >
+      <fieldset className="min-w-0">
         <section
           id={reviewNodeId("document")}
           className="scroll-mt-24 mb-8 rounded-2xl border border-slate-200 bg-white p-6 shadow-sm"
@@ -1421,23 +1385,11 @@ export function ReviewEditor({
         <div className="flex flex-wrap gap-3">
           <button
             type="button"
-            onClick={() => void saveDraft()}
-            disabled={isSaving || isImporting || Boolean(importedAt)}
+            onClick={() => void saveReview()}
+            disabled={isSaving}
             className="rounded-lg bg-slate-900 px-4 py-2 text-sm font-semibold text-white disabled:opacity-50"
           >
-            {isSaving ? t("saving") : t("saveDraft")}
-          </button>
-          <button
-            type="button"
-            onClick={() => void validateAndImport()}
-            disabled={isSaving || isImporting || Boolean(importedAt)}
-            className="rounded-lg bg-blue-700 px-4 py-2 text-sm font-semibold text-white disabled:cursor-not-allowed disabled:opacity-45"
-          >
-            {isImporting
-              ? t("importing")
-              : importedAt
-                ? t("alreadyValidated")
-                : t("validateImport")}
+            {isSaving ? t("saving") : t("saveReview")}
           </button>
         </div>
       </footer>

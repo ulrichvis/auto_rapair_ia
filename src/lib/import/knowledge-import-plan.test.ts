@@ -313,3 +313,13 @@ test("rejects invalid enum values before import planning", () => {
   invalid.cases[0].faultCodes[0].role = "UNKNOWN_ROLE";
   assert.throws(() => validateAutomotiveExtractionDraft(invalid));
 });
+
+test("omits an optional part row when no part number was extracted", () => {
+  const draft = completeDraft();
+  draft.cases[0].parts[0].partNumber = " ";
+
+  const plan = buildKnowledgeImportPlan(draft);
+
+  assert.deepEqual(plan.draft.cases[0].parts, []);
+  assert.deepEqual(plan.references[0].parts, []);
+});

@@ -1,5 +1,4 @@
-export type ImportStateErrorCode =
-  "NOT_FOUND" | "NOT_REVIEWED" | "ALREADY_IMPORTED" | "STALE";
+export type ImportStateErrorCode = "NOT_FOUND" | "ALREADY_IMPORTED" | "STALE";
 
 export class ImportStateError extends Error {
   constructor(readonly code: ImportStateErrorCode) {
@@ -8,13 +7,41 @@ export class ImportStateError extends Error {
   }
 }
 
-export function assertImportableRun(
+export function buildTechnicalCaseLifecycle(
+  mode: "automatic" | "human-review",
+  importedAutomatically: boolean,
+  now: Date,
+) {
+  return mode === "automatic"
+    ? {
+        validationStatus: "IN_REVIEW" as const,
+        validatedAt: null,
+        importedAutomatically: true,
+        reviewedByHuman: false,
+        reviewedAt: null,
+      }
+    : {
+        validationStatus: "VALIDATED" as const,
+        validatedAt: now,
+        importedAutomatically,
+        reviewedByHuman: true,
+        reviewedAt: now,
+      };
+}
+
+export function buildHumanReviewRunUpdate<T>(
+  reviewedOutput: T,
+  reviewedAt: Date,
+) {
+  return { reviewedOutput, reviewedAt };
+}
+
+export function assertAutomaticallyImportableRun(
   run: {
     id: string;
     sourceDocumentId: string;
     status: string;
     hasRawOutput: boolean;
-    reviewedAt: Date | null;
     importedAt: Date | null;
   } | null,
   expectedDocumentId: string,
@@ -23,13 +50,12 @@ export function assertImportableRun(
   if (
     !run ||
     run.sourceDocumentId !== expectedDocumentId ||
-    run.status !== "SUCCESS" ||
     !run.hasRawOutput
   ) {
     throw new ImportStateError("NOT_FOUND");
   }
-  if (!run.reviewedAt) throw new ImportStateError("NOT_REVIEWED");
   if (run.importedAt) throw new ImportStateError("ALREADY_IMPORTED");
+  if (run.status !== "IMPORTING") throw new ImportStateError("NOT_FOUND");
   if (latestSuccessfulRunId !== run.id) throw new ImportStateError("STALE");
 }
 

@@ -3,6 +3,10 @@ import { notFound } from "next/navigation";
 import { getTranslations } from "next-intl/server";
 
 import {
+  buildKnowledgeImportPlan,
+  KnowledgeImportValidationError,
+} from "@/lib/import/knowledge-import-plan";
+import {
   getDocumentReview,
   ReviewDraftNotFoundError,
 } from "@/lib/server/review/review-draft";
@@ -37,6 +41,31 @@ export default async function DocumentReviewPage(
     throw error;
   }
 
+  const apiT = await getTranslations("ApiErrors");
+  let initialValidationIssues: Array<{
+    code: string;
+    path: string;
+    message: string;
+  }> = [];
+
+  try {
+    buildKnowledgeImportPlan(review.draft, {
+      maxSourcePage: review.maxSourcePage,
+    });
+  } catch (error) {
+    if (error instanceof KnowledgeImportValidationError) {
+      initialValidationIssues = error.issues.map((issue) => ({
+        ...issue,
+        message: apiT(`importValidation.${issue.code}`, {
+          path: issue.path,
+          reference: issue.reference ?? "",
+        }),
+      }));
+    } else {
+      throw error;
+    }
+  }
+
   return (
     <ReviewEditor
       documentId={review.documentId}
@@ -44,8 +73,10 @@ export default async function DocumentReviewPage(
       originalFilename={review.originalFilename}
       completedAt={review.completedAt}
       initialImportedAt={review.importedAt}
+      initialReviewedAt={review.reviewedAt}
       initialImportedCases={review.importedCases}
       initialDraft={review.draft}
+      initialValidationIssues={initialValidationIssues}
     />
   );
 }

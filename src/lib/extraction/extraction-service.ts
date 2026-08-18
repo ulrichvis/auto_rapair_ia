@@ -44,6 +44,10 @@ export type ExtractionServiceDependencies = {
   provider: ExtractionProvider;
   loadPdf(storagePath: string): Promise<Buffer>;
   preparePdf?(pdf: Buffer): Promise<PreparedPdf>;
+  importKnowledge(
+    documentId: string,
+    runId: string,
+  ): Promise<{ cases: Array<{ id: string; title: string }> }>;
 };
 
 export class ExtractionConflictError extends Error {
@@ -78,6 +82,7 @@ export function createExtractionService({
   provider,
   loadPdf,
   preparePdf,
+  importKnowledge,
 }: ExtractionServiceDependencies) {
   return {
     async extractDocument(documentId: string) {
@@ -119,6 +124,13 @@ export function createExtractionService({
           const result = toSuccessfulExtraction(providerResult);
 
           await repository.completeRun(document.id, runId, result);
+          const imported = await importKnowledge(document.id, runId);
+
+          return {
+            runId,
+            status: "IMPORTED" as const,
+            cases: imported.cases,
+          };
         } finally {
           await prepared.cleanup().catch((cleanupError) => {
             const message =
@@ -128,8 +140,6 @@ export function createExtractionService({
             console.warn(`Temporary PDF cleanup failed: ${message}`);
           });
         }
-
-        return { runId, status: "REVIEW_REQUIRED" as const };
       } catch (error) {
         await repository.failRun(
           document.id,

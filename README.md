@@ -2,7 +2,7 @@
 
 A SaaS application for turning automotive technical PDF documents into structured, validated, and searchable knowledge.
 
-The project currently contains the application and PostgreSQL/Prisma foundations, a minimal admin workflow for storing source PDFs, and an OpenAI-powered extraction pipeline that stores unvalidated drafts for later human review. Authentication and final relational import have not been implemented yet.
+The project currently contains the application and PostgreSQL/Prisma foundations, a minimal admin workflow for private source PDFs, and an OpenAI-powered pipeline that automatically imports structurally valid extraction results into relational knowledge. Human review remains available as an optional correction step. Authentication has not been implemented yet.
 
 ## Requirements
 
@@ -82,10 +82,11 @@ From the document list, select **Extract** for one uploaded PDF. The server:
 2. Retrieves the PDF from the private Supabase bucket without creating a public URL.
 3. Sends it to the OpenAI Responses API as base64 PDF file input using strict Structured Outputs.
 4. Validates the returned draft again with the application schema.
-5. Stores the complete draft in `IngestionRun.rawOutput`, along with model and token usage when available.
-6. Marks the run `SUCCESS` and the document `REVIEW_REQUIRED`.
+5. Stores the complete, immutable extraction snapshot in `IngestionRun.rawOutput`, along with model and token usage when available.
+6. Validates references, ordering, source pages, and measurement constraints before writing relational knowledge in one transaction.
+7. Marks automatically imported cases `IN_REVIEW`, the run `IMPORTED`, and the document `COMPLETED`.
 
-Failures mark both the run and document as failed and can be retried from the document list. Extraction never writes `TechnicalCase` or `Case*` rows. The extraction route declares a five-minute maximum duration; confirm the deployed Vercel plan supports enough execution time for representative PDFs.
+Failures mark both the run and document as failed and can be retried from the document list. A failed relational import creates no partial domain rows, while the extracted `rawOutput` remains available for diagnosis and optional correction. The review page stores corrected data in `reviewedOutput`, replaces that run's relational cases transactionally, and marks them as human-reviewed without overwriting `rawOutput`. The extraction route declares a five-minute maximum duration; confirm the deployed Vercel plan supports enough execution time for representative PDFs.
 
 ## Database foundation
 

@@ -59,7 +59,7 @@ export const prismaExtractionRepository: ExtractionRepository = {
       await transaction.ingestionRun.update({
         where: { id: runId },
         data: {
-          status: "SUCCESS",
+          status: "IMPORTING",
           extractorVersion: result.providerVersion,
           model: result.model,
           inputTokens: result.inputTokens,
@@ -72,7 +72,7 @@ export const prismaExtractionRepository: ExtractionRepository = {
       });
       await transaction.sourceDocument.update({
         where: { id: documentId },
-        data: { processingStatus: "REVIEW_REQUIRED" },
+        data: { processingStatus: "PROCESSING" },
       });
 
       const detectedLanguage = result.draft.document.language;

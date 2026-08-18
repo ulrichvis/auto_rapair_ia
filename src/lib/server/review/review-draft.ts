@@ -1,10 +1,12 @@
 import "server-only";
 
 import { Prisma } from "@/generated/prisma/client";
+import { validateAutomotiveExtractionDraft } from "@/lib/extraction/automotive-draft-schema";
 import {
-  validateAutomotiveExtractionDraft,
-  type AutomotiveExtractionDraft,
-} from "@/lib/extraction/automotive-draft-schema";
+  KnowledgeImportConflictError,
+  KnowledgeImportNotFoundError,
+  replaceKnowledgeFromReview,
+} from "@/lib/server/import/import-reviewed-knowledge";
 import { prisma } from "@/lib/server/prisma";
 
 export class ReviewDraftNotFoundError extends Error {
@@ -21,31 +23,27 @@ export class ReviewDraftConflictError extends Error {
   }
 }
 
-export class ReviewDraftImportedError extends Error {
-  constructor(message: string) {
-    super(message);
-    this.name = "ReviewDraftImportedError";
-  }
-}
-
-function toJsonValue(draft: AutomotiveExtractionDraft) {
-  return JSON.parse(JSON.stringify(draft)) as Prisma.InputJsonValue;
-}
-
 export async function getDocumentReview(documentId: string) {
   const document = await prisma.sourceDocument.findUnique({
     where: { id: documentId },
     select: {
       id: true,
       originalFilename: true,
+      pageCount: true,
+      claimedPageCount: true,
       ingestionRuns: {
-        where: { status: "SUCCESS" },
+        where: {
+          status: { in: ["SUCCESS", "IMPORTED", "FAILED"] },
+          rawOutput: { not: Prisma.AnyNull },
+        },
         orderBy: { startedAt: "desc" },
         take: 1,
         select: {
           id: true,
           rawOutput: true,
+          reviewedOutput: true,
           completedAt: true,
+          reviewedAt: true,
           importedAt: true,
           importedCases: {
             select: { id: true, title: true },
@@ -64,18 +62,26 @@ export async function getDocumentReview(documentId: string) {
 
   if (!run?.rawOutput) {
     throw new ReviewDraftNotFoundError(
-      "This document does not have a successful extraction to review.",
+      "This document does not have extracted data to review.",
     );
   }
 
   return {
     documentId: document.id,
     originalFilename: document.originalFilename,
+    maxSourcePage:
+      document.pageCount ??
+      validateAutomotiveExtractionDraft(run.reviewedOutput ?? run.rawOutput)
+        .document.claimedPageCount ??
+      document.claimedPageCount,
     runId: run.id,
     completedAt: run.completedAt?.toISOString() ?? null,
     importedAt: run.importedAt?.toISOString() ?? null,
+    reviewedAt: run.reviewedAt?.toISOString() ?? null,
     importedCases: run.importedCases,
-    draft: validateAutomotiveExtractionDraft(run.rawOutput),
+    draft: validateAutomotiveExtractionDraft(
+      run.reviewedOutput ?? run.rawOutput,
+    ),
   };
 }
 
@@ -86,39 +92,16 @@ export async function saveDocumentReview(
 ) {
   const draft = validateAutomotiveExtractionDraft(draftInput);
 
-  await prisma.$transaction(async (transaction) => {
-    const latestRun = await transaction.ingestionRun.findFirst({
-      where: {
-        sourceDocumentId: documentId,
-        status: "SUCCESS",
-      },
-      orderBy: { startedAt: "desc" },
-      select: { id: true, importedAt: true },
-    });
-
-    if (!latestRun) {
-      throw new ReviewDraftNotFoundError(
-        "This document does not have a successful extraction to review.",
-      );
+  try {
+    const result = await replaceKnowledgeFromReview(documentId, runId, draft);
+    return { draft, ...result };
+  } catch (error) {
+    if (error instanceof KnowledgeImportConflictError) {
+      throw new ReviewDraftConflictError(error.message);
     }
-
-    if (latestRun.id !== runId) {
-      throw new ReviewDraftConflictError(
-        "A newer extraction is available. Reload before saving.",
-      );
+    if (error instanceof KnowledgeImportNotFoundError) {
+      throw new ReviewDraftNotFoundError(error.message);
     }
-
-    if (latestRun.importedAt) {
-      throw new ReviewDraftImportedError(
-        "Imported reviewed drafts can no longer be changed.",
-      );
-    }
-
-    await transaction.ingestionRun.update({
-      where: { id: latestRun.id },
-      data: { rawOutput: toJsonValue(draft), reviewedAt: new Date() },
-    });
-  });
-
-  return draft;
+    throw error;
+  }
 }

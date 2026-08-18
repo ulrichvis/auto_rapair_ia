@@ -14,7 +14,6 @@ export type ImportValidationCode =
   | "UNRESOLVED_APPLICABILITY_REFERENCE"
   | "UNRESOLVED_STEP_REFERENCE"
   | "AMBIGUOUS_REFERENCE"
-  | "PART_NUMBER_REQUIRED"
   | "SOLUTION_TYPE_REQUIRED"
   | "REQUIRED_TEXT_MISSING"
   | "INVALID_SOURCE_PAGE";
@@ -27,7 +26,7 @@ export type ImportValidationIssue = {
 
 export class KnowledgeImportValidationError extends Error {
   constructor(readonly issues: ImportValidationIssue[]) {
-    super("The reviewed extraction draft is not valid for import.");
+    super("The extracted technical data is not valid for relational import.");
     this.name = "KnowledgeImportValidationError";
   }
 }
@@ -78,6 +77,20 @@ function uniqueValues(values: Array<string | null | undefined>) {
   return [
     ...new Set(values.map(text).filter((value): value is string => !!value)),
   ];
+}
+
+function prepareDraftForRelationalImport(
+  draft: AutomotiveExtractionDraft,
+): AutomotiveExtractionDraft {
+  return {
+    ...draft,
+    cases: draft.cases.map((technicalCase) => ({
+      ...technicalCase,
+      parts: technicalCase.parts.filter((item) =>
+        Boolean(text(item.partNumber)),
+      ),
+    })),
+  };
 }
 
 function resolveReference<T>(
@@ -136,6 +149,7 @@ export function buildKnowledgeImportPlan(
   draft: AutomotiveExtractionDraft,
   options: { maxSourcePage?: number | null } = {},
 ): KnowledgeImportPlan {
+  draft = prepareDraftForRelationalImport(draft);
   const issues: ImportValidationIssue[] = [];
   const maxSourcePage = options.maxSourcePage ?? null;
   const references: CaseReferencePlan[] = [];
@@ -432,12 +446,6 @@ export function buildKnowledgeImportPlan(
 
     const parts = technicalCase.parts.map((item, index) => {
       const path = `${casePath}.parts[${index}]`;
-      if (!text(item.partNumber)) {
-        issues.push({
-          code: "PART_NUMBER_REQUIRED",
-          path: `${path}.partNumber`,
-        });
-      }
       validateSourcePage(
         item.sourcePage,
         `${path}.sourcePage`,

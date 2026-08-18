@@ -1,9 +1,9 @@
 import { ZodError } from "zod";
 import { getTranslations } from "next-intl/server";
 
+import { KnowledgeImportValidationError } from "@/lib/import/knowledge-import-plan";
 import {
   ReviewDraftConflictError,
-  ReviewDraftImportedError,
   ReviewDraftNotFoundError,
   saveDocumentReview,
 } from "@/lib/server/review/review-draft";
@@ -40,20 +40,32 @@ export async function PUT(
       return Response.json({ error: t("invalidRunId") }, { status: 400 });
     }
 
-    const draft = await saveDocumentReview(documentId, body.runId, body.draft);
+    const result = await saveDocumentReview(documentId, body.runId, body.draft);
 
     return Response.json({
       status: "saved",
       savedAt: new Date().toISOString(),
-      draft,
+      ...result,
     });
   } catch (error) {
-    if (error instanceof ReviewDraftConflictError) {
-      return Response.json({ error: t("newerExtraction") }, { status: 409 });
+    if (error instanceof KnowledgeImportValidationError) {
+      return Response.json(
+        {
+          error: t("importValidationFailed"),
+          issues: error.issues.map((issue) => ({
+            ...issue,
+            message: t(`importValidation.${issue.code}`, {
+              path: issue.path,
+              reference: issue.reference ?? "",
+            }),
+          })),
+        },
+        { status: 422 },
+      );
     }
 
-    if (error instanceof ReviewDraftImportedError) {
-      return Response.json({ error: t("alreadyImported") }, { status: 409 });
+    if (error instanceof ReviewDraftConflictError) {
+      return Response.json({ error: t("newerExtraction") }, { status: 409 });
     }
 
     if (error instanceof ReviewDraftNotFoundError) {

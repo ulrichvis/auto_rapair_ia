@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { getTranslations } from "next-intl/server";
 
+import { Prisma } from "@/generated/prisma/client";
 import { prisma } from "@/lib/server/prisma";
 
 import { ExtractButton } from "./extract-button";
@@ -23,10 +24,14 @@ export default async function AdminDocumentsPage() {
       originalFilename: true,
       processingStatus: true,
       createdAt: true,
-      _count: {
-        select: {
-          ingestionRuns: { where: { status: "SUCCESS" } },
+      ingestionRuns: {
+        where: {
+          status: { in: ["SUCCESS", "IMPORTED", "FAILED"] },
+          rawOutput: { not: Prisma.AnyNull },
         },
+        orderBy: { startedAt: "desc" },
+        take: 1,
+        select: { rawOutput: true, importedAt: true },
       },
     },
   });
@@ -60,6 +65,8 @@ export default async function AdminDocumentsPage() {
                   document.processingStatus === "PENDING" ||
                   document.processingStatus === "FAILED" ||
                   document.processingStatus === "REVIEW_REQUIRED";
+                const latestRun = document.ingestionRuns[0];
+                const canReview = Boolean(latestRun?.rawOutput);
                 return (
                   <li
                     key={document.id}
@@ -80,12 +87,22 @@ export default async function AdminDocumentsPage() {
                     </div>
 
                     <div className="flex flex-col items-end gap-2">
-                      {document._count.ingestionRuns > 0 ? (
+                      {document.processingStatus === "COMPLETED" ? (
                         <Link
-                          href={`/admin/documents/${document.id}/review`}
+                          href="/admin/cases"
                           className="rounded-lg bg-blue-700 px-3 py-2 text-sm font-semibold text-white hover:bg-blue-600"
                         >
-                          {t("review")}
+                          {t("openKnowledge")}
+                        </Link>
+                      ) : null}
+                      {canReview ? (
+                        <Link
+                          href={`/admin/documents/${document.id}/review`}
+                          className="rounded-lg border border-slate-300 px-3 py-2 text-sm font-semibold text-slate-800 hover:bg-slate-50"
+                        >
+                          {latestRun?.importedAt
+                            ? t("editKnowledge")
+                            : t("reviewFailedImport")}
                         </Link>
                       ) : null}
                       {canExtract ? (

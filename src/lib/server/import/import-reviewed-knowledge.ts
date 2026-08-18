@@ -1,9 +1,14 @@
 import "server-only";
 
-import type { Prisma } from "@/generated/prisma/client";
-import { validateAutomotiveExtractionDraft } from "@/lib/extraction/automotive-draft-schema";
+import { Prisma } from "@/generated/prisma/client";
 import {
-  assertImportableRun,
+  validateAutomotiveExtractionDraft,
+  type AutomotiveExtractionDraft,
+} from "@/lib/extraction/automotive-draft-schema";
+import {
+  assertAutomaticallyImportableRun,
+  buildHumanReviewRunUpdate,
+  buildTechnicalCaseLifecycle,
   ImportStateError,
   runAtomicImport,
 } from "@/lib/import/import-transaction";
@@ -31,18 +36,20 @@ export class KnowledgeAlreadyImportedError extends Error {
   }
 }
 
-export class KnowledgeReviewRequiredError extends Error {
-  constructor(message: string) {
-    super(message);
-    this.name = "KnowledgeReviewRequiredError";
-  }
-}
-
 export type ImportedCaseSummary = { id: string; title: string };
 
-export async function importReviewedKnowledge(
+type ImportOptions =
+  | { mode: "automatic" }
+  | { mode: "human-review"; draft: AutomotiveExtractionDraft };
+
+function toJsonValue(draft: AutomotiveExtractionDraft) {
+  return JSON.parse(JSON.stringify(draft)) as Prisma.InputJsonValue;
+}
+
+async function importKnowledge(
   documentId: string,
   runId: string,
+  options: ImportOptions,
 ): Promise<{ importedAt: string; cases: ImportedCaseSummary[] }> {
   try {
     return await runAtomicImport<
@@ -71,62 +78,108 @@ export async function importReviewedKnowledge(
             sourceDocumentId: true,
             status: true,
             rawOutput: true,
-            reviewedAt: true,
             importedAt: true,
           },
         });
 
         const latestRun = await transaction.ingestionRun.findFirst({
-          where: { sourceDocumentId: documentId, status: "SUCCESS" },
+          where: {
+            sourceDocumentId: documentId,
+            rawOutput: { not: Prisma.AnyNull },
+          },
           orderBy: { startedAt: "desc" },
           select: { id: true },
         });
-        assertImportableRun(
-          run
-            ? {
-                id: run.id,
-                sourceDocumentId: run.sourceDocumentId,
-                status: run.status,
-                hasRawOutput: Boolean(run.rawOutput),
-                reviewedAt: run.reviewedAt,
-                importedAt: run.importedAt,
-              }
-            : null,
-          documentId,
-          latestRun?.id ?? null,
-        );
 
-        const draft = validateAutomotiveExtractionDraft(run!.rawOutput);
+        if (options.mode === "automatic") {
+          assertAutomaticallyImportableRun(
+            run
+              ? {
+                  id: run.id,
+                  sourceDocumentId: run.sourceDocumentId,
+                  status: run.status,
+                  hasRawOutput: Boolean(run.rawOutput),
+                  importedAt: run.importedAt,
+                }
+              : null,
+            documentId,
+            latestRun?.id ?? null,
+          );
+        } else if (
+          !run ||
+          run.sourceDocumentId !== documentId ||
+          !run.rawOutput ||
+          latestRun?.id !== run.id ||
+          run.status === "PROCESSING" ||
+          run.status === "IMPORTING"
+        ) {
+          throw new ImportStateError(
+            latestRun?.id !== runId ? "STALE" : "NOT_FOUND",
+          );
+        }
+
+        const draft =
+          options.mode === "human-review"
+            ? options.draft
+            : validateAutomotiveExtractionDraft(run!.rawOutput);
         const plan = buildKnowledgeImportPlan(draft, {
           maxSourcePage:
             document.pageCount ??
             draft.document.claimedPageCount ??
             document.claimedPageCount,
         });
-        const importedAt = new Date();
+        const relationalDraft = plan.draft;
+        const now = new Date();
+        const importedAt = run!.importedAt ?? now;
+        let importedAutomatically = options.mode === "automatic";
 
-        const claimed = await transaction.ingestionRun.updateMany({
-          where: { id: run!.id, importedAt: null },
-          data: { importedAt },
-        });
-        if (claimed.count !== 1) {
-          throw new KnowledgeAlreadyImportedError(
-            "This reviewed extraction has already been imported.",
-          );
+        if (options.mode === "automatic") {
+          const claimed = await transaction.ingestionRun.updateMany({
+            where: {
+              id: run!.id,
+              status: "IMPORTING",
+              importedAt: null,
+            },
+            data: { importedAt },
+          });
+          if (claimed.count !== 1) {
+            throw new KnowledgeAlreadyImportedError(
+              "This extraction has already been imported.",
+            );
+          }
+        } else {
+          const automaticCase = await transaction.technicalCase.findFirst({
+            where: {
+              importedFromRunId: run!.id,
+              importedAutomatically: true,
+            },
+            select: { id: true },
+          });
+          importedAutomatically = Boolean(automaticCase);
+          await transaction.technicalCase.deleteMany({
+            where: { importedFromRunId: run!.id },
+          });
         }
 
         const importedCases: ImportedCaseSummary[] = [];
 
-        for (const [caseIndex, technicalCase] of draft.cases.entries()) {
+        for (const [
+          caseIndex,
+          technicalCase,
+        ] of relationalDraft.cases.entries()) {
           const referencePlan = plan.references[caseIndex];
+          const lifecycle = buildTechnicalCaseLifecycle(
+            options.mode,
+            importedAutomatically,
+            now,
+          );
           const createdCase = await transaction.technicalCase.create({
             data: {
               title: technicalCase.title,
               summary: technicalCase.summary,
               problemDescription: technicalCase.problemDescription,
               primarySystem: technicalCase.primarySystem,
-              validationStatus: "VALIDATED",
-              validatedAt: importedAt,
+              ...lifecycle,
               importedFromRunId: run!.id,
               sources: {
                 create: { sourceDocumentId: documentId, isPrimary: true },
@@ -385,14 +438,29 @@ export async function importReviewedKnowledge(
           }
         }
 
-        const documentMetadata = draft.document;
+        const documentMetadata = relationalDraft.document;
+        await transaction.ingestionRun.update({
+          where: { id: run!.id },
+          data: {
+            status: "IMPORTED",
+            importedAt,
+            ...(options.mode === "human-review"
+              ? buildHumanReviewRunUpdate(toJsonValue(draft), now)
+              : {}),
+            errorMessage: null,
+            completedAt: now,
+          },
+        });
         await transaction.sourceDocument.update({
           where: { id: documentId },
           data: {
             title: documentMetadata.detectedTitle ?? undefined,
             bulletinReference: documentMetadata.bulletinReference ?? undefined,
             publisher: documentMetadata.publisher ?? undefined,
-            language: documentMetadata.language ?? undefined,
+            language:
+              options.mode === "human-review"
+                ? (documentMetadata.language ?? undefined)
+                : undefined,
             claimedPageCount: documentMetadata.claimedPageCount ?? undefined,
             processingStatus: "COMPLETED",
           },
@@ -405,23 +473,30 @@ export async function importReviewedKnowledge(
     if (error instanceof ImportStateError) {
       if (error.code === "ALREADY_IMPORTED") {
         throw new KnowledgeAlreadyImportedError(
-          "This reviewed extraction has already been imported.",
+          "This extraction has already been imported.",
         );
       }
       if (error.code === "STALE") {
         throw new KnowledgeImportConflictError(
-          "A newer successful extraction must be reviewed before import.",
-        );
-      }
-      if (error.code === "NOT_REVIEWED") {
-        throw new KnowledgeReviewRequiredError(
-          "The extraction draft must be saved from human review before import.",
+          "A newer extraction is available.",
         );
       }
       throw new KnowledgeImportNotFoundError(
-        "The reviewed successful ingestion run was not found.",
+        "The extracted ingestion run was not found.",
       );
     }
     throw error;
   }
+}
+
+export function importExtractedKnowledge(documentId: string, runId: string) {
+  return importKnowledge(documentId, runId, { mode: "automatic" });
+}
+
+export function replaceKnowledgeFromReview(
+  documentId: string,
+  runId: string,
+  draft: AutomotiveExtractionDraft,
+) {
+  return importKnowledge(documentId, runId, { mode: "human-review", draft });
 }

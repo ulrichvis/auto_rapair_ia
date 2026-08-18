@@ -19,6 +19,8 @@ enum IngestionStatus {
   PENDING
   RUNNING
   PROCESSING
+  IMPORTING
+  IMPORTED
   SUCCESS
   COMPLETED
   FAILED
@@ -136,6 +138,7 @@ model IngestionRun {
   outputTokens            Int?
   totalTokens             Int?
   rawOutput               Json?
+  reviewedOutput          Json?
   errorMessage            String?
   originalFileSizeBytes   Int?
   processingFileSizeBytes Int?
@@ -155,30 +158,33 @@ model IngestionRun {
 }
 
 model TechnicalCase {
-  id                 String              @id @default(cuid())
-  title              String
-  summary            String?
-  problemDescription String?
-  primarySystem      String?
-  validationStatus   ValidationStatus    @default(DRAFT)
-  reviewNotes        String?
-  validatedAt        DateTime?
-  importedFromRunId  String?
-  createdAt          DateTime            @default(now())
-  updatedAt          DateTime            @updatedAt
-  importedFromRun    IngestionRun?       @relation("ImportedKnowledge", fields: [importedFromRunId], references: [id], onDelete: SetNull)
-  sources            CaseSource[]
-  applicability      CaseApplicability[]
-  faultCodes         CaseFaultCode[]
-  symptoms           CaseSymptom[]
-  components         CaseComponent[]
-  causes             CaseCause[]
-  solutions          CaseSolution[]
-  procedures         Procedure[]
-  measurementSpecs   MeasurementSpec[]
-  notes              CaseNote[]
-  parts              CasePart[]
-  media              SourceMedia[]
+  id                    String              @id @default(cuid())
+  title                 String
+  summary               String?
+  problemDescription    String?
+  primarySystem         String?
+  validationStatus      ValidationStatus    @default(DRAFT)
+  reviewNotes           String?
+  validatedAt           DateTime?
+  importedAutomatically Boolean             @default(false)
+  reviewedByHuman       Boolean             @default(false)
+  reviewedAt            DateTime?
+  importedFromRunId     String?
+  createdAt             DateTime            @default(now())
+  updatedAt             DateTime            @updatedAt
+  importedFromRun       IngestionRun?       @relation("ImportedKnowledge", fields: [importedFromRunId], references: [id], onDelete: SetNull)
+  sources               CaseSource[]
+  applicability         CaseApplicability[]
+  faultCodes            CaseFaultCode[]
+  symptoms              CaseSymptom[]
+  components            CaseComponent[]
+  causes                CaseCause[]
+  solutions             CaseSolution[]
+  procedures            Procedure[]
+  measurementSpecs      MeasurementSpec[]
+  notes                 CaseNote[]
+  parts                 CasePart[]
+  media                 SourceMedia[]
 
   @@index([validationStatus])
   @@index([importedFromRunId])
